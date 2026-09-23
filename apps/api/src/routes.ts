@@ -1,0 +1,48 @@
+import { Router } from "express";
+import { requireAuth, requireOrg } from "./middleware/auth.js";
+import { authRouter } from "./modules/auth/auth.routes.js";
+import { organizationsRouter } from "./modules/organizations/organizations.routes.js";
+import { billingPublicRouter, billingRouter } from "./modules/billing/billing.routes.js";
+import { onboardingRouter } from "./modules/onboarding/onboarding.routes.js";
+import { dashboardRouter } from "./modules/dashboard/dashboard.routes.js";
+import { engineRouter } from "./modules/engine/engine.routes.js";
+import { inboxRouter } from "./modules/inbox/inbox.routes.js";
+import { contactsRouter, dailyRouter } from "./modules/contacts/contacts.routes.js";
+import { batchesRouter, publicBatchesRouter } from "./modules/batches/batches.routes.js";
+import { campaignsRouter } from "./modules/campaigns/campaigns.routes.js";
+import { blocklistRouter } from "./modules/blocklist/blocklist.routes.js";
+import { settingsRouter } from "./modules/settings/settings.routes.js";
+import { sendingRouter } from "./modules/sending/sending.routes.js";
+import { sourcingRouter } from "./modules/sourcing/sourcing.routes.js";
+import { systemLogsRouter } from "./modules/system-logs/system-logs.routes.js";
+import { webhooksRouter } from "./modules/webhooks/webhooks.routes.js";
+import { jobsRouter } from "./modules/jobs/jobs.routes.js";
+import { adminRouter } from "./modules/admin/admin.routes.js";
+
+export const apiRouter = Router();
+
+apiRouter.use("/auth", authRouter);
+apiRouter.use("/billing", billingPublicRouter);
+apiRouter.use("/billing", billingRouter);
+apiRouter.use("/webhooks", webhooksRouter);
+apiRouter.use("/jobs", jobsRouter);
+apiRouter.use("/public/batches", publicBatchesRouter);
+apiRouter.use("/admin", adminRouter);
+
+const tenant = Router();
+tenant.use(requireAuth, requireOrg);
+tenant.use("/organizations", organizationsRouter);
+tenant.use("/onboarding", onboardingRouter);
+tenant.use("/dashboard", dashboardRouter);
+tenant.use("/engine", engineRouter);
+tenant.use("/inbox", inboxRouter);
+tenant.use("/contacts", contactsRouter);
+tenant.use("/daily", dailyRouter);
+tenant.use("/batches", batchesRouter);
+tenant.use("/campaigns", campaignsRouter);
+tenant.use("/blocklist", blocklistRouter);
+tenant.use("/settings", settingsRouter);
+tenant.use("/sending", sendingRouter);
+tenant.use("/sourcing", sourcingRouter);
+tenant.use("/system-logs", systemLogsRouter);
+apiRouter.use(tenant);

@@ -1,0 +1,6 @@
+import { Router } from "express";
+import * as c from "./dashboard.controller.js";
+
+export const dashboardRouter = Router();
+dashboardRouter.get("/cockpit", c.cockpit);
+dashboardRouter.get("/nav-counts", c.navCounts);
