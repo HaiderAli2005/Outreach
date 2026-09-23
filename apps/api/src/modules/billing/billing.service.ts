@@ -56,7 +56,8 @@ export async function checkout(orgId: string, email: string, idempotencyKey: str
 
   const planId = planIdForVolume(onboarding.volume);
   const plan = await prisma.plan.findUniqueOrThrow({ where: { id: planId } });
-  if (!plan.stripePriceId || !env.STRIPE_PRICE_INBOX) throw notConfigured(`Stripe prices for the ${plan.name} plan and inboxes`);
+  const inboxPrice = onboarding.fastStart ? env.STRIPE_PRICE_INBOX_FAST : env.STRIPE_PRICE_INBOX;
+  if (!plan.stripePriceId || !inboxPrice) throw notConfigured(`Stripe prices for the ${plan.name} plan and ${onboarding.fastStart ? "pre-warmed " : ""}inboxes`);
 
   const existing = await prisma.subscription.findUnique({ where: { organizationId: orgId } });
   if (existing && ["ACTIVE", "TRIALING", "PAST_DUE"].includes(existing.status)) throw conflict("This organization already has a subscription. Manage it from Billing.");
@@ -78,11 +79,11 @@ export async function checkout(orgId: string, email: string, idempotencyKey: str
   const sub = await stripe.subscriptions.create(
     {
       customer: customerId,
-      items: [{ price: plan.stripePriceId }, { price: env.STRIPE_PRICE_INBOX, quantity: inboxCount }],
+      items: [{ price: plan.stripePriceId }, { price: inboxPrice, quantity: inboxCount }],
       payment_behavior: "default_incomplete",
       payment_settings: { save_default_payment_method: "on_subscription" },
       expand: ["latest_invoice.confirmation_secret"],
-      metadata: { organizationId: orgId, planId, dailyVolume: String(onboarding.volume) },
+      metadata: { organizationId: orgId, planId, dailyVolume: String(onboarding.volume), fastStart: String(onboarding.fastStart) },
     },
     { idempotencyKey: `${idempotencyKey}:subscription` },
   );

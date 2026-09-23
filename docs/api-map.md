@@ -53,7 +53,7 @@ Legend: 🔓 public · 🔑 signed in · 🏢 organization member · 👑 org ow
 | Method | Path | Access | Source equivalent |
 |---|---|---|---|
 | GET | `/onboarding` | 🏢 | — |
-| PATCH | `/onboarding` | 👑 (summary, ICP, volume, warmup, provider) | — |
+| PATCH | `/onboarding` | 👑 (facts, groups, senders, volume, warmup, inboxes per domain, provider, fastStart) | — |
 | POST | `/onboarding/analysis` | 👑 | `POST /config/brand-setup` |
 | POST | `/onboarding/preview` | 👑 | personalize + followups |
 | GET | `/onboarding/domains/ideas` | 👑 | — |
@@ -147,3 +147,16 @@ Legend: 🔓 public · 🔑 signed in · 🏢 organization member · 👑 org ow
 
 `GET /healthz` (liveness, no dependencies) and `GET /api/v1/health` (database and Redis checks; 503 when the
 database is unreachable).
+
+## Added during the frontend build
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| POST | `/onboarding/answers` | org owner/admin, AI rate limit | Used when the site can't be read. Builds the facts and buyer groups from three answers (sell, who, countries). |
+| GET | `/onboarding/market?refresh=1` | org member | Apollo counts per buyer group (all and verified emails) plus a 25 person sample per group. Cached 24h per set of enabled groups. |
+| POST | `/organizations` | signed in, no organization needed | Creates a workspace (and starts setup when a domain is given). Up to 5 owned workspaces per user. |
+| POST | `/webhooks/smartlead/:orgToken` | the organization's webhook token | Per-tenant URL. Events for a campaign that belongs to another organization are ignored. |
+
+`/webhooks/calendly/:orgToken` and `/webhooks/apollo/:orgToken` also accept the organization token alone,
+so tenants can configure them without the platform secret. `GET /organizations/current` hides the webhook
+token from `MEMBER` users.

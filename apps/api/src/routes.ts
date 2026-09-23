@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAuth, requireOrg } from "./middleware/auth.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { organizationsRouter } from "./modules/organizations/organizations.routes.js";
+import { create as createOrganization } from "./modules/organizations/organizations.controller.js";
 import { billingPublicRouter, billingRouter } from "./modules/billing/billing.routes.js";
 import { onboardingRouter } from "./modules/onboarding/onboarding.routes.js";
 import { dashboardRouter } from "./modules/dashboard/dashboard.routes.js";
@@ -28,6 +29,7 @@ apiRouter.use("/webhooks", webhooksRouter);
 apiRouter.use("/jobs", jobsRouter);
 apiRouter.use("/public/batches", publicBatchesRouter);
 apiRouter.use("/admin", adminRouter);
+apiRouter.post("/organizations", requireAuth, createOrganization);
 
 const tenant = Router();
 tenant.use(requireAuth, requireOrg);

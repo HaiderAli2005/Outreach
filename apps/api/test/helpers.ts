@@ -11,6 +11,7 @@ import { setVerifierFactory } from "../src/integrations/verifier.js";
 import { setSlackPoster } from "../src/integrations/slack.js";
 import { setStripeClient } from "../src/modules/billing/stripe.client.js";
 import { setDomainChecker } from "../src/modules/onboarding/domainIdeas.js";
+import { setSiteReader } from "../src/integrations/site.js";
 import { hashPassword } from "../src/modules/auth/auth.service.js";
 import { signAccessToken } from "../src/modules/auth/tokens.js";
 
@@ -38,6 +39,7 @@ export async function resetDb(): Promise<void> {
   setSlackPoster(async () => true);
   setStripeClient(undefined);
   setDomainChecker(async () => false);
+  setSiteReader(async () => ({ home: null, pages: [] }));
 }
 
 export interface TestTenant {

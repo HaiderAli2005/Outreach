@@ -1,8 +1,26 @@
 import type { MemberRole } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
-import { conflict, forbidden, notFound, unprocessable } from "../../lib/errors.js";
+import { badRequest, conflict, forbidden, notFound, unprocessable } from "../../lib/errors.js";
 import { randomToken, sha256 } from "../../lib/crypto.js";
 import type { OrgContext } from "../../lib/http.js";
+import { brandFromDomain, extractDomain, isValidDomain } from "../../lib/normalize.js";
+import { createOrganizationWithOwner } from "../auth/auth.repository.js";
+
+const MAX_OWNED_ORGS = 5;
+
+export async function createOrganization(userId: string, input: { name?: string; domain?: string }) {
+  const domain = input.domain ? extractDomain(input.domain) : null;
+  if (input.domain && (!domain || !isValidDomain(domain))) throw badRequest("That doesn't look like a domain. Try something like northwind.io");
+  const owned = await prisma.membership.count({ where: { userId, role: "OWNER", status: "ACTIVE" } });
+  if (owned >= MAX_OWNED_ORGS) throw unprocessable(`You can own up to ${MAX_OWNED_ORGS} organizations`);
+  const name = input.name?.trim() || (domain ? brandFromDomain(domain) : "My workspace");
+  const org = await prisma.$transaction(async (tx) => {
+    const o = await createOrganizationWithOwner(tx, userId, name, domain);
+    if (domain) await tx.onboarding.create({ data: { organizationId: o.id, domain, brand: brandFromDomain(domain), icp: { industries: [], titles: [], sizes: [], regions: [] } } });
+    return o;
+  });
+  return { id: org.id, name: org.name, primaryDomain: org.primaryDomain };
+}
 
 export async function getOrganization(orgId: string) {
   const org = await prisma.organization.findUnique({

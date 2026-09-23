@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
-import { ctx, ok, created } from "../../lib/http.js";
+import { ctx, ok, created, currentUser } from "../../lib/http.js";
 import { parseBody, parseParams } from "../../middleware/validate.js";
 import * as service from "./organizations.service.js";
 
@@ -8,7 +8,9 @@ const idParam = z.object({ id: z.string().min(1) });
 const role = z.enum(["OWNER", "ADMIN", "MEMBER"]);
 
 export async function current(req: Request, res: Response) {
-  return ok(res, await service.getOrganization(ctx(req).orgId));
+  const { orgId, role } = ctx(req);
+  const org = await service.getOrganization(orgId);
+  return ok(res, role === "MEMBER" ? { ...org, webhookToken: undefined } : org);
 }
 
 export async function update(req: Request, res: Response) {
@@ -34,4 +36,9 @@ export async function changeRole(req: Request, res: Response) {
 export async function remove(req: Request, res: Response) {
   const { id } = parseParams(req, idParam);
   return ok(res, await service.removeMember(ctx(req), id));
+}
+
+export async function create(req: Request, res: Response) {
+  const body = parseBody(req, z.object({ name: z.string().trim().max(120).optional(), domain: z.string().trim().max(253).optional() }));
+  return created(res, await service.createOrganization(currentUser(req).id, body));
 }

@@ -1,4 +1,5 @@
 import { prisma, type Db } from "../../lib/prisma.js";
+import { randomToken } from "../../lib/crypto.js";
 
 export const userSelect = { id: true, email: true, name: true, status: true, isPlatformAdmin: true, passwordHash: true } as const;
 
@@ -19,7 +20,7 @@ export function activeMemberships(userId: string) {
 }
 
 export async function createOrganizationWithOwner(db: Db, userId: string, name: string, domain: string | null) {
-  const org = await db.organization.create({ data: { name, primaryDomain: domain } });
+  const org = await db.organization.create({ data: { name, primaryDomain: domain, webhookToken: randomToken(24) } });
   await db.membership.create({ data: { organizationId: org.id, userId, role: "OWNER", status: "ACTIVE" } });
   await db.orgSettings.create({ data: { organizationId: org.id, senderCompany: name } });
   return org;

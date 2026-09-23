@@ -8,6 +8,7 @@
 | Growth plan (≤ 2,000/day) | $199 / month | `STRIPE_PRICE_GROWTH` |
 | Scale plan (≤ 5,000/day) | $449 / month | `STRIPE_PRICE_SCALE` |
 | Inbox | $4 / month each | recurring Price with quantity, `STRIPE_PRICE_INBOX` |
+| Pre-warmed inbox (fast start) | `INBOX_FAST_PRICE_CENTS` / month each | optional, `STRIPE_PRICE_INBOX_FAST`. When unset, fast start shows as unavailable. |
 | Sending domain | per TLD, yearly | one-time invoice item added to the first invoice (price_data) |
 
 Sizing rules: an inbox sends at most 40 emails/day when warm; inboxes needed = ceil(volume / 40); domains

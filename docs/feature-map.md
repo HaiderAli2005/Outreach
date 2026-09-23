@@ -32,11 +32,11 @@ New: `/app/settings` Team tab · `/organizations/current/members` (list, invite 
 
 ### Domain analysis (brand research)  `[x]`
 Existing: `POST /config/brand-setup` → `libs/brand.researchBrand` (site scrape + AI ICP).
-New: landing hero + onboarding step 2 · `/onboarding/analysis` · `Onboarding` (summary, ICP chips), site scrape + OpenAI JSON. Without an AI key the step shows an error with Retry and allows entering the audience manually.
+New: landing hero + onboarding step 2 · `/onboarding/analysis` reads the homepage and up to 9 common subpages (public IPs only) and asks OpenAI for sourced facts (company, what you sell, who it's for, where, proof) plus 2 to 3 buyer groups · `Onboarding.facts`, `Onboarding.groups`. Facts are editable in place; groups can be switched on and off and the ICP is the union of the enabled groups. When the site can't be read, three questions (`/onboarding/answers`) build the same facts and groups. `/onboarding/market` sizes each group with Apollo (all and verified emails, 25 person sample) and caches it for 24h.
 
 ### Free sequence preview  `[x]`
 Existing: `followups.buildSequence`, `personalize` (first email + 2 follow-ups).
-New: onboarding step 3 · `/onboarding/preview` · generated from the saved analysis with OpenAI; cached on `Onboarding.preview`.
+New: onboarding step 3 · market card and sample prospects from `/onboarding/market`, first emails from `/onboarding/preview` (generated from the enabled groups, cached on `Onboarding.preview`), and a recommended pace that leaves at least 3 months of new people.
 
 ### Daily volume and plan  `[x]`
 Existing: `default_daily_send_cap`, `per_mailbox_daily_cap`, credit caps.
@@ -48,7 +48,7 @@ New: onboarding step 5 · `/onboarding/domains/ideas` (lookalike generator + rea
 
 ### Inboxes and warmup plan  `[~]`
 Existing: Smartlead mailbox listing + attach (`/smartlead/mailboxes`, `/smartlead/provision`).
-New: onboarding step 6 · `Mailbox` rows per domain with warmup length · Settings → Sending lists real Smartlead mailboxes and attaches them. Creating Google/Microsoft inboxes is not in either source and stays `PENDING` until an inbox provider is integrated.
+New: onboarding step 6 · sending timeline (14 day warmup by default, first emails at 10 to 15 per inbox, full volume after a 14 day ramp), optional fast start with pre-warmed inboxes (`STRIPE_PRICE_INBOX_FAST`), up to 3 sender names rotated across addresses, `Mailbox` rows per domain · Settings → Sending lists real Smartlead mailboxes and attaches them. Creating Google/Microsoft inboxes is not in either source and stays `PENDING` until an inbox provider is integrated.
 
 ### Payment  `[x]`
 Existing: none.
@@ -56,7 +56,7 @@ New: onboarding step 7 + `/app/billing` · `/billing/checkout` (Stripe subscript
 
 ### Launch  `[x]`
 Existing: `/smartlead/provision` (create campaign → sequence → schedule → settings → attach mailboxes → webhook → START).
-New: onboarding step 8 · `/onboarding/launch` · creates the first `Campaign` from the analysis and provisions it in Smartlead when a key and mailboxes are available; otherwise reports exactly which prerequisite is missing.
+New: onboarding step 8 · `/onboarding/launch` · creates the first `Campaign` from the analysis and provisions it in Smartlead when a key and mailboxes are available; otherwise reports exactly which prerequisite is missing. The launch page shows progress derived from real domain and mailbox statuses and can import a CSV of the user's own contacts into the campaign.
 
 ---
 
@@ -68,7 +68,7 @@ New: `/app` · `/dashboard/cockpit` (tenant-scoped aggregates).
 
 ### Sidebar badges  `[x]`
 Existing: `GET /dashboard/nav-counts`.
-New: rail badges · `/dashboard/nav-counts`, polled every 45 s by RTK Query.
+New: rail badges · `/dashboard/nav-counts`, polled every 60 s by RTK Query (paused while the tab is hidden). Optional browser notification when a new reply lands.
 
 ### Emergency stop / start  `[x]`
 Existing: `POST /config/stop`, `/config/start` (switch off autopilot + auto-reply, cancel queued replies, pause/resume Smartlead campaigns).
@@ -84,7 +84,7 @@ New: `/app/inbox` · `/inbox` · `domain/needsReply.ts` is the single predicate 
 
 ### Thread view with AI draft and pending auto-reply preview  `[x]`
 Existing: `GET /inbox/:id`.
-New: `/app/inbox?thread=` · `/inbox/:contactId`.
+New: `/app/inbox?c=<contactId>` · `/inbox/:contactId`.
 
 ### Human reply through Smartlead (opt-out guard, handoff before send, bookkeeping never fails a delivered reply)  `[x]`
 Existing: `POST /inbox/:id/reply`.
@@ -114,14 +114,14 @@ Existing: `GET /contacts/export`. New: `/contacts/export`.
 Existing: `POST /contacts/import`, `libs/leadImport`, `libs/dedup`. New: import dialog · `/contacts/import`.
 
 ### Today's list (sent + queued) and CSV  `[x]`
-Existing: `GET /daily`, `/daily/export`. New: Leads "Today" tab · `/daily`, `/daily/export`.
+Existing: `GET /daily`, `/daily/export`. New: Leads "Sent by day" tab · `/daily`, `/daily/export`.
 
 ---
 
 ## Weekly batches (approval gate)
 
 ### List, pending, detail with live stats  `[x]`
-Existing: `/batches`, `/batches/pending`, `/batches/:id`. New: Leads "This week" view · same routes.
+Existing: `/batches`, `/batches/pending`, `/batches/:id`. New: Leads "Week review" tab · same routes.
 
 ### Exclude leads, approve week  `[x]`
 Existing: `POST /batches/:id/exclude`, `/approve`. New: same.
@@ -194,7 +194,7 @@ Existing: `/smartlead/mailboxes`, `/smartlead/provision`. New: Settings → Send
 Existing: `GET /config/autopilot`. New: `/settings/autopilot-status`.
 
 ### Brand profile  `[x]`
-Existing: locked `brand_profile` JSON seeded by migrations for one customer. New: generated per organization by onboarding analysis, editable in Settings → Brand.
+Existing: locked `brand_profile` JSON seeded by migrations for one customer. New: generated per organization by onboarding analysis; value proposition, sender details, booking link and opt-out line are editable in Settings → Sender and brand.
 
 ---
 
@@ -211,10 +211,10 @@ Existing: `/healthz`, deep `/health`. New: `/healthz`, `/api/v1/health` (DB + Re
 ## Integrations and webhooks
 
 ### Smartlead webhook: SENT, REPLY, BOUNCE, UNSUBSCRIBE, MANUAL_REPLY (echo detection)  `[x]`
-Existing: `POST /webhooks/smartlead`. New: `/webhooks/smartlead?token=`; routed to the tenant by Smartlead campaign id.
+Existing: `POST /webhooks/smartlead`. New: `/webhooks/smartlead/:orgToken` (per-organization URL shown in Settings → Integrations; events for another tenant's campaign are ignored) and the platform-level `/webhooks/smartlead?token=`, routed by Smartlead campaign id.
 
 ### Calendly webhook (meeting booked / cancelled)  `[x]`
-Existing: `POST /webhooks/calendly`. New: `/webhooks/calendly/:orgToken`.
+Existing: `POST /webhooks/calendly`. New: `/webhooks/calendly/:orgToken` (the organization's random webhook token is the credential).
 
 ### Apollo waterfall webhook  `[x]`
 Existing: `POST /webhooks/apollo`. New: `/webhooks/apollo/:orgToken`.
@@ -222,8 +222,8 @@ Existing: `POST /webhooks/apollo`. New: `/webhooks/apollo/:orgToken`.
 ### Apollo people search preview / import  `[x]`
 Existing: `/apollo/search`, `/apollo/import`. New: `/sourcing/search`, `/sourcing/import`.
 
-### Apollo account-based import, signals refresh  `[~]`
-Existing: `/apollo/org-search`, `/apollo/import-accounts`, `/apollo/signals`. New: org search preview implemented; account import and hiring/news signals are not ported (they fed Swedish-market scoring heuristics only).
+### Apollo account-based import, signals refresh  `[ ]`
+Existing: `/apollo/org-search`, `/apollo/import-accounts`, `/apollo/signals`. New: not ported. People search preview and import cover sourcing; account import and hiring/news signals fed Swedish-market scoring heuristics only.
 
 ### Apollo usage and plans  `[x]`
 Existing: `/apollo/usage`, `/apollo/plans`. New: `/sourcing/usage`.
@@ -300,3 +300,15 @@ Existing: `attachmentVision`, `replyGuard` (44 KB of Swedish-specific validators
 The 40 one-off scripts (probe-apollo, repair-*, backfill-*, seed-inbox-demo, verify-cutover-state…) were
 operational repairs for one production database. They are not features and are not ported. `add-user.js`
 is replaced by registration and invites. `run-migrations.js` is replaced by `prisma migrate deploy`.
+
+---
+
+## Added during the rebuild
+
+| Feature | Where | Status |
+|---|---|---|
+| Public domain check on the landing page (real site fetch, MX and SPF lookup, rate limited) | landing hero · `POST /public/domain-scan` | `[x]` |
+| Outbound fetch guard (only public IPs, manual redirect checks) for every site read | `integrations/site.ts` | `[x]` |
+| Create a workspace for a signed-in user without one (admin accounts, removed members) | `/app` empty state, `/onboarding` · `POST /organizations` | `[x]` |
+| Accept a team invite by link | `/invite?token=` · `/auth/accept-invite` | `[x]` |
+| Switch between organizations | rail select · `/auth/refresh` with `organizationId` | `[x]` |

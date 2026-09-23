@@ -14,7 +14,7 @@
 | 8 | SaaS: organizations, roles, entitlements, platform admin | done |
 | 9 | Performance pass (denormalised thread fields, indexes, RTK Query caching, streaming CSV) | done |
 | 10 | Tests and fixes | done |
-| 11 | Cloud Run / Cloud SQL / Memorystore / Secret Manager deployment config | done |
+| 11 | Cloud Run / Cloud SQL / Memorystore / Secret Manager deployment config | written; see `deployment.md` (images not built in the authoring sandbox because Docker Hub rate-limited the base image pull) |
 
 ## Dependency review
 
@@ -77,4 +77,8 @@ enum values upper-cased.
 | Creating Google/Microsoft inboxes | Not in either source | Planned inboxes are stored as `PLANNED`/`PENDING`. Real sending uses mailboxes already connected in Smartlead (listed and attached from Settings → Sending), exactly as the source did. |
 | Smartlead statistics reconciliation in reply-sync | 40 KB of recovery logic for missed webhooks on one account | Webhooks are the source of truth; the classify and follow-up sweeps run. |
 | Apollo account import and signals | Fed Swedish-market scoring only | Not exposed. |
+| Attachment vision and reply-guard validators | Swedish-specific | Replies with attachments go to a human. |
+| AI features without an OpenAI key | Key is a deployment secret | Analysis, previews, drafts and personalization report that AI isn't configured; nothing is invented. |
 | Slack CSV report upload | Dropped `@slack/web-api` | Reports post a text summary to the Slack webhook. |
+| Password reset and transactional email | Neither source sends account email, and no email provider is configured | Not built. Users can sign in with Google if it is configured; an admin can disable accounts. Adding reset means a mail provider plus a `/auth/password-reset` pair of endpoints. |
+| Team invites by email | Same reason | The invite dialog returns a link the admin sends themselves. |

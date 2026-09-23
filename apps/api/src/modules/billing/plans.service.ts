@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma.js";
+import { env } from "../../config/env.js";
 import {
   INBOX_PRICE_CENTS,
   MAX_INBOXES_PER_DOMAIN,
@@ -9,6 +10,9 @@ import {
   VOLUME_MIN,
   WARMUP_OPTIONS,
   WARMUP_START_PER_INBOX,
+  CAMPAIGN_START,
+  FAST_START,
+  INBOX_FAST_PRICE_CENTS,
 } from "../../config/plans.js";
 
 export async function seedPlans(): Promise<void> {
@@ -34,6 +38,8 @@ export async function catalogue() {
       volumeMin: VOLUME_MIN,
       volumeMax: VOLUME_MAX,
       tldPricesCents: TLD_PRICES_CENTS,
+      campaignStart: CAMPAIGN_START,
+      fastStart: { ...FAST_START, available: !!(INBOX_FAST_PRICE_CENTS && env.STRIPE_PRICE_INBOX_FAST), inboxPriceCents: INBOX_FAST_PRICE_CENTS },
     },
   };
 }

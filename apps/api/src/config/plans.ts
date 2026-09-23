@@ -1,7 +1,10 @@
 import { env } from "./env.js";
 
 export const SENDS_PER_WARM_INBOX = 40;
-export const WARMUP_START_PER_INBOX = 5;
+export const WARMUP_START_PER_INBOX = 10;
+export const CAMPAIGN_START = { lo: 10, hi: 15, rampDays: 14 } as const;
+export const FAST_START = { days: 3, lo: 15, hi: 20, rampDays: 7 } as const;
+export const INBOX_FAST_PRICE_CENTS: number | null = env.INBOX_FAST_PRICE_CENTS ?? null;
 export const INBOX_PRICE_CENTS = 400;
 export const MAX_INBOXES_PER_DOMAIN = 5;
 export const WARMUP_OPTIONS = [14, 21, 28] as const;
@@ -53,7 +56,7 @@ export const PLAN_DEFINITIONS: PlanDefinition[] = [
     maxDailyVolume: 5000,
     priceMonthlyCents: 44900,
     maxCampaigns: null,
-    features: ["Everything in Growth", "Dedicated IP pools", "Priority support"],
+    features: ["Everything in Growth", "Priority support"],
     stripePriceId: env.STRIPE_PRICE_SCALE,
     sortOrder: 3,
   },

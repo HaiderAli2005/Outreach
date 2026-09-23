@@ -102,3 +102,29 @@ describe("calendly webhook", () => {
     expect(after.autoReplyStatus).toBe("MANUAL");
   });
 });
+
+describe("per-organization webhook urls", () => {
+  beforeEach(resetDb);
+
+  it("accepts the organization's own token without the platform secret", async () => {
+    const { t } = await setup();
+    const org = await prisma.organization.findUniqueOrThrow({ where: { id: t.orgId } });
+    const res = await api().post(`/api/v1/webhooks/smartlead/${org.webhookToken}`).send({ event_type: "EMAIL_SENT", campaign_id: 9001, sl_lead_email: "ann@acme.com", email_stats_id: "st-9" });
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).not.toBe("ignored");
+  });
+
+  it("ignores events for another organization's campaign", async () => {
+    await setup();
+    const other = await createTenant();
+    const org = await prisma.organization.findUniqueOrThrow({ where: { id: other.orgId } });
+    const res = await api().post(`/api/v1/webhooks/smartlead/${org.webhookToken}`).send({ event_type: "EMAIL_REPLY", campaign_id: 9001, sl_lead_email: "ann@acme.com", email_stats_id: "st-10", reply_message: { text: "hi" } });
+    expect(res.body.data.status).toBe("ignored");
+    expect(await prisma.message.count({ where: { direction: "INBOUND" } })).toBe(0);
+  });
+
+  it("rejects unknown organization tokens", async () => {
+    await api().post("/api/v1/webhooks/smartlead/not-a-real-token-value").send({}).expect(401);
+    await api().post("/api/v1/webhooks/calendly/not-a-real-token-value").send({}).expect(401);
+  });
+});

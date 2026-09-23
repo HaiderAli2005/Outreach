@@ -5,22 +5,34 @@ import { unauthorized } from "../../lib/errors.js";
 import { ok } from "../../lib/http.js";
 import * as service from "./webhooks.service.js";
 
-function authorize(req: Request): void {
+function platformToken(req: Request): boolean {
   const token = String(req.query.token ?? req.get("x-webhook-secret") ?? "");
-  if (!token || !safeEqual(token, env.WEBHOOK_SECRET)) throw unauthorized("Invalid webhook token");
+  return !!token && safeEqual(token, env.WEBHOOK_SECRET);
 }
 
+async function authorize(req: Request): Promise<string | null> {
+  const orgToken = typeof req.params.orgToken === "string" ? req.params.orgToken : "";
+  if (orgToken) {
+    const orgId = await service.orgForWebhookToken(orgToken);
+    if (orgId) return orgId;
+  }
+  if (!platformToken(req)) throw unauthorized("Invalid webhook token");
+  return null;
+}
+
+const body = (req: Request) => (req.body ?? {}) as Record<string, unknown>;
+
 export async function smartlead(req: Request, res: Response) {
-  authorize(req);
-  return ok(res, await service.handleSmartlead((req.body ?? {}) as Record<string, unknown>));
+  const orgId = await authorize(req);
+  return ok(res, await service.handleSmartlead(body(req), orgId));
 }
 
 export async function calendly(req: Request, res: Response) {
-  authorize(req);
-  return ok(res, await service.handleCalendly(String(req.params.orgToken), (req.body ?? {}) as Record<string, unknown>));
+  await authorize(req);
+  return ok(res, await service.handleCalendly(String(req.params.orgToken), body(req)));
 }
 
 export async function apollo(req: Request, res: Response) {
-  authorize(req);
-  return ok(res, await service.handleApollo(String(req.params.orgToken), (req.body ?? {}) as Record<string, unknown>));
+  await authorize(req);
+  return ok(res, await service.handleApollo(String(req.params.orgToken), body(req)));
 }

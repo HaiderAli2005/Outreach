@@ -271,9 +271,15 @@ model Onboarding {
   icp              Json
   preview          Json?
   volume           Int          @default(1000)
-  warmupDays       Int          @default(21)
+  warmupDays       Int          @default(14)
   inboxesPerDomain Int          @default(3)
   provider         String       @default("google")
+  facts            Json?
+  groups           Json?
+  market           Json?
+  siteReadable     Boolean?
+  fastStart        Boolean      @default(false)
+  senders          Json?
   analyzedAt       DateTime?
   analysisError    String?
   paidAt           DateTime?

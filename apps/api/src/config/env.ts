@@ -28,6 +28,8 @@ const schema = z.object({
   STRIPE_PRICE_GROWTH: optional,
   STRIPE_PRICE_SCALE: optional,
   STRIPE_PRICE_INBOX: optional,
+  STRIPE_PRICE_INBOX_FAST: optional,
+  INBOX_FAST_PRICE_CENTS: z.coerce.number().int().positive().optional(),
   OPENAI_API_KEY: optional,
   OPENAI_MODEL: z.string().default("gpt-4.1-mini"),
   APOLLO_API_KEY: optional,

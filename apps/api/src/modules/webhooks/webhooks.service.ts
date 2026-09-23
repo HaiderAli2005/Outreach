@@ -41,13 +41,21 @@ export async function orgForSmartleadCampaign(slCampaignId: string | null): Prom
   return contacts.length === 1 ? contacts[0].organizationId : null;
 }
 
-export async function handleSmartlead(body: Body): Promise<{ status: string; messageId?: string }> {
+export async function orgForWebhookToken(token: string): Promise<string | null> {
+  if (!token || token.length < 16) return null;
+  const org = await prisma.organization.findUnique({ where: { webhookToken: token }, select: { id: true } });
+  return org?.id ?? null;
+}
+
+export async function handleSmartlead(body: Body, tokenOrgId: string | null = null): Promise<{ status: string; messageId?: string }> {
   const event = String(body.event_type ?? body.event ?? body.type ?? "").toUpperCase();
   const leadEmail = str(body.sl_lead_email ?? body.lead_email ?? body.to_email ?? body.email);
   const { normalized } = normalizeEmail(leadEmail);
   const slLeadId = str(body.sl_email_lead_id ?? body.lead_id ?? body.sl_lead_id);
   const slCampaignId = str(body.campaign_id ?? body.sl_campaign_id);
-  const orgId = await orgForSmartleadCampaign(slCampaignId);
+  const resolved = await orgForSmartleadCampaign(slCampaignId);
+  if (tokenOrgId && resolved && resolved !== tokenOrgId) return { status: "ignored" };
+  const orgId = resolved ?? tokenOrgId;
   const eventId = await claim("SMARTLEAD", body, event || "UNKNOWN", orgId);
   if (!eventId) return { status: "duplicate" };
   if (!orgId) {
