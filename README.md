@@ -23,7 +23,8 @@ npm run dev:api
 npm run dev:web
 ```
 
-The web app runs on http://localhost:3000 and proxies `/api` to the API on port 4000.
+The web app runs on http://localhost:3000 and proxies `/api` to the API on port 4000. The Docker
+Postgres listens on port 5433 so it doesn't clash with a Postgres already installed on 5432.
 
 Integrations switch on when their keys are set in `apps/api/.env`: Stripe (billing), OpenAI (site
 analysis and sequences), Apollo (market sizing and leads), Smartlead (campaigns and mailboxes), Google

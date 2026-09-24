@@ -15,5 +15,8 @@
     "test": "npm test -w apps/api && npm test -w apps/web",
     "typecheck": "npm run typecheck -w apps/api && npm run typecheck -w apps/web",
     "db:up": "docker compose -f infra/docker-compose.yml up -d"
+  },
+  "overrides": {
+    "deepmerge-ts": "^8.0.2"
   }
 }
