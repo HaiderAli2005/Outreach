@@ -15,7 +15,7 @@ export const viewport: Viewport = { themeColor: "#161615", width: "device-width"
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="en" data-scroll-behavior="smooth" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body>
         <IconSprite />
         <div className="grain" aria-hidden="true" />
