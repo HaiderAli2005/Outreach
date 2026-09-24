@@ -30,6 +30,11 @@ const schema = z.object({
   STRIPE_PRICE_INBOX: optional,
   STRIPE_PRICE_INBOX_FAST: optional,
   INBOX_FAST_PRICE_CENTS: z.preprocess((v) => (typeof v === "string" && !v.trim() ? undefined : v), z.coerce.number().int().positive().optional()),
+  MAIL_HOST: optional,
+  MAIL_PORT: z.preprocess((v) => (typeof v === "string" && !v.trim() ? undefined : v), z.coerce.number().int().positive().default(587)),
+  MAIL_USER: optional,
+  MAIL_PASS: optional,
+  MAIL_FROM: optional,
   OPENAI_API_KEY: optional,
   OPENAI_MODEL: z.string().default("gpt-4.1-mini"),
   APOLLO_API_KEY: optional,
@@ -67,4 +72,5 @@ export const features = {
   googleOAuth: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REDIRECT_URI),
   stripe: Boolean(env.STRIPE_SECRET_KEY),
   ai: Boolean(env.OPENAI_API_KEY),
+  mail: Boolean(env.MAIL_HOST && env.MAIL_USER && env.MAIL_PASS && env.MAIL_FROM),
 };

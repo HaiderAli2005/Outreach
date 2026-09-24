@@ -12,6 +12,7 @@ import { setSlackPoster } from "../src/integrations/slack.js";
 import { setStripeClient } from "../src/modules/billing/stripe.client.js";
 import { setDomainChecker } from "../src/modules/onboarding/domainIdeas.js";
 import { setSiteReader } from "../src/integrations/site.js";
+import { setMailSender } from "../src/integrations/mailer.js";
 import { hashPassword } from "../src/modules/auth/auth.service.js";
 import { signAccessToken } from "../src/modules/auth/tokens.js";
 
@@ -26,7 +27,7 @@ export const api = () => request(getApp());
 const TABLES = [
   "Refund", "Payment", "Invoice", "Subscription", "WebhookEvent", "AutoReplyDecision", "AutoReplyQueue", "Message", "Contact", "Company",
   "WeeklyBatch", "Campaign", "BlocklistEntry", "SystemLog", "UsageCounter", "Mailbox", "SendingDomain", "Onboarding", "IntegrationCredential",
-  "OrgSettings", "Membership", "Organization", "RefreshToken", "OAuthAccount", "User",
+  "OrgSettings", "Membership", "Organization", "RefreshToken", "OAuthAccount", "EmailChallenge", "User",
 ];
 
 export async function resetDb(): Promise<void> {
@@ -40,6 +41,7 @@ export async function resetDb(): Promise<void> {
   setStripeClient(undefined);
   setDomainChecker(async () => false);
   setSiteReader(async () => ({ home: null, pages: [] }));
+  setMailSender(null);
 }
 
 export interface TestTenant {

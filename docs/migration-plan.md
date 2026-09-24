@@ -80,5 +80,14 @@ enum values upper-cased.
 | Attachment vision and reply-guard validators | Swedish-specific | Replies with attachments go to a human. |
 | AI features without an OpenAI key | Key is a deployment secret | Analysis, previews, drafts and personalization report that AI isn't configured; nothing is invented. |
 | Slack CSV report upload | Dropped `@slack/web-api` | Reports post a text summary to the Slack webhook. |
-| Password reset and transactional email | Neither source sends account email, and no email provider is configured | Not built. Users can sign in with Google if it is configured; an admin can disable accounts. Adding reset means a mail provider plus a `/auth/password-reset` pair of endpoints. |
-| Team invites by email | Same reason | The invite dialog returns a link the admin sends themselves. |
+| Team invites by email | Account email now exists (Mailgun SMTP, used for verification and password reset) but invites don't use it yet | The invite dialog returns a link the admin sends themselves. |
+
+## Added after the rebuild: email verification and password reset
+
+Ported from RankHouse's number match (see `authentication.md`). Checklist to switch it on:
+
+- [ ] Mailgun sending domain verified (SPF, DKIM, DMARC records added at the DNS provider)
+- [ ] `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, `MAIL_PASS`, `MAIL_FROM` set on the API
+- [ ] `WEB_ORIGIN` set to the public web address, because the email links are built from it
+- [ ] Mailgun click tracking off for the sending domain, so the number links aren't rewritten
+- [ ] Migration `20260924120000_email_challenge` applied (`prisma migrate deploy`)

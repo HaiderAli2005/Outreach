@@ -1,7 +1,7 @@
 import { prisma, type Db } from "../../lib/prisma.js";
 import { randomToken } from "../../lib/crypto.js";
 
-export const userSelect = { id: true, email: true, name: true, status: true, isPlatformAdmin: true, passwordHash: true } as const;
+export const userSelect = { id: true, email: true, name: true, status: true, isPlatformAdmin: true, passwordHash: true, emailVerifiedAt: true } as const;
 
 export function findUserByEmail(email: string) {
   return prisma.user.findUnique({ where: { email }, select: userSelect });

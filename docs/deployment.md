@@ -51,6 +51,9 @@ Then, once:
 - Fast start (optional): create a recurring price for pre-warmed inboxes, then add
   `--update-env-vars INBOX_FAST_PRICE_CENTS=<cents>` and `--update-secrets STRIPE_PRICE_INBOX_FAST=STRIPE_PRICE_INBOX_FAST:latest`
   to the API service. Without both, onboarding shows fast start as not offered.
+- Email (optional, turns on email verification and password reset): add `--update-env-vars
+  MAIL_HOST=smtp.mailgun.org,MAIL_PORT=587,MAIL_USER=postmaster@mg.<domain>,MAIL_FROM=Aperture <no-reply@mg.<domain>>`
+  and `--update-secrets MAIL_PASS=MAIL_PASS:latest` to the API service.
 - Google OAuth: authorised redirect URI `https://<public web or api domain>/api/v1/auth/oauth/google/callback`.
 
 ## Environment

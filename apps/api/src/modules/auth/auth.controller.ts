@@ -6,6 +6,8 @@ import { ok, created, currentUser } from "../../lib/http.js";
 import { badRequest, unauthorized } from "../../lib/errors.js";
 import { parseBody } from "../../middleware/validate.js";
 import * as service from "./auth.service.js";
+import * as verification from "./verification.service.js";
+import { challengeStatus as challengeStatusOf } from "./emailChallenge.js";
 import { REFRESH_COOKIE, REFRESH_COOKIE_PATH, REFRESH_TTL_DAYS } from "./tokens.js";
 import { buildGoogleAuthUrl, exchangeGoogleCode, type OAuthState } from "./oauth.google.js";
 
@@ -40,14 +42,85 @@ const registerSchema = z.object({
 
 const loginSchema = z.object({ email: z.email("Enter a valid email"), password: z.string().min(1).max(128) });
 
+const claimCookieOpts = (): CookieOptions => ({
+  httpOnly: true,
+  secure: isProd,
+  sameSite: "strict",
+  path: REFRESH_COOKIE_PATH,
+  maxAge: verification.CLAIM_TTL_SECONDS * 1000,
+});
+
+function sendOutcome(res: Response, outcome: service.AuthOutcome, status = 200) {
+  if (outcome.kind === "session") return sendSession(res, outcome, status);
+  res.cookie(verification.CLAIM_COOKIE, verification.signClaim(outcome.userId), claimCookieOpts());
+  const body = { verificationRequired: true, verification: outcome.verification };
+  return status === 201 ? created(res, body) : ok(res, body);
+}
+
 export async function register(req: Request, res: Response) {
   const body = parseBody(req, registerSchema);
-  return sendSession(res, await service.register(body, meta(req)), 201);
+  return sendOutcome(res, await service.register(body, meta(req)), 201);
 }
 
 export async function login(req: Request, res: Response) {
   const body = parseBody(req, loginSchema);
-  return sendSession(res, await service.login(body.email, body.password, meta(req)));
+  return sendOutcome(res, await service.login(body.email, body.password, meta(req)));
+}
+
+const challengeIdSchema = z.object({ challengeId: z.string().min(1).max(64) });
+const tokenSchema = z.object({ token: z.string().min(1).max(100), n: z.union([z.string().max(4), z.number()]).optional() });
+
+export async function challengeStatus(req: Request, res: Response) {
+  const { challengeId } = parseBody(req, challengeIdSchema);
+  return ok(res, await challengeStatusOf(challengeId));
+}
+
+export async function challengeCode(req: Request, res: Response) {
+  const body = parseBody(req, challengeIdSchema.extend({ code: z.string().min(1).max(12) }));
+  const result = await verification.answerCode(body.challengeId, body.code, meta(req));
+  if (result.purpose === "RESET") return ok(res, result);
+  res.cookie(REFRESH_COOKIE, result.refreshToken, refreshCookieOpts());
+  res.clearCookie(verification.CLAIM_COOKIE, { path: REFRESH_COOKIE_PATH });
+  return ok(res, { purpose: "VERIFY", session: result.session });
+}
+
+export async function challengeSendCode(req: Request, res: Response) {
+  const { challengeId } = parseBody(req, challengeIdSchema);
+  return ok(res, await verification.sendCode(challengeId));
+}
+
+export async function verifyEmail(req: Request, res: Response) {
+  const body = parseBody(req, tokenSchema);
+  const result = await verification.verifyFromEmail(body.token, body.n, meta(req));
+  res.cookie(REFRESH_COOKIE, result.refreshToken, refreshCookieOpts());
+  return ok(res, result.session);
+}
+
+export async function resendVerification(req: Request, res: Response) {
+  return ok(res, await verification.resendVerification(req.cookies?.[verification.CLAIM_COOKIE]));
+}
+
+export async function claim(req: Request, res: Response) {
+  const result = await verification.claimSession(req.cookies?.[verification.CLAIM_COOKIE], meta(req));
+  if (!result.claimed) return ok(res, { claimed: false, reason: result.reason });
+  res.cookie(REFRESH_COOKIE, result.refreshToken, refreshCookieOpts());
+  res.clearCookie(verification.CLAIM_COOKIE, { path: REFRESH_COOKIE_PATH });
+  return ok(res, { claimed: true, session: result.session });
+}
+
+export async function forgotPassword(req: Request, res: Response) {
+  const { email } = parseBody(req, z.object({ email: z.email("Enter a valid email").max(254) }));
+  return ok(res, await verification.forgotPassword(email));
+}
+
+export async function checkResetLink(req: Request, res: Response) {
+  const body = parseBody(req, tokenSchema);
+  return ok(res, await verification.checkResetLink(body.token, body.n, meta(req)));
+}
+
+export async function resetPassword(req: Request, res: Response) {
+  const body = parseBody(req, z.object({ token: z.string().min(1).max(100), password }));
+  return ok(res, await verification.resetPassword(body.token, body.password));
 }
 
 export async function refresh(req: Request, res: Response) {
@@ -79,7 +152,7 @@ export async function acceptInvite(req: Request, res: Response) {
 }
 
 export function providers(_req: Request, res: Response) {
-  return ok(res, { google: features.googleOAuth });
+  return ok(res, { google: features.googleOAuth, passwordReset: verification.verificationRequired() });
 }
 
 export function googleStart(req: Request, res: Response) {

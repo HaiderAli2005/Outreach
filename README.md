@@ -26,7 +26,8 @@ The web app runs on http://localhost:3100 and proxies `/api` to the API on port 
 Postgres listens on port 55432 and the web app on 3100 so they don't clash with other local projects
 that commonly use 5432, 5433 or 3000.
 
-Integrations switch on when their keys are set in `apps/api/.env`: Stripe (billing), OpenAI (site
+Integrations switch on when their keys are set in `apps/api/.env`: Mailgun SMTP (email verification with
+number match and password reset), Stripe (billing), OpenAI (site
 analysis and sequences), Apollo (market sizing and leads), Smartlead (campaigns and mailboxes), Google
 OAuth (sign in). Without a key, the related screens say what is missing instead of showing sample data.
 

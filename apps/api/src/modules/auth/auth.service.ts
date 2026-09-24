@@ -7,6 +7,8 @@ import { getRedis } from "../../lib/redis.js";
 import { brandFromDomain, extractDomain, isValidDomain } from "../../lib/normalize.js";
 import * as repo from "./auth.repository.js";
 import { ACCESS_TTL_SECONDS, REFRESH_TTL_DAYS, signAccessToken } from "./tokens.js";
+import { createChallenge, forScreen } from "./emailChallenge.js";
+import { sendChallengeMail, startVerification, verificationRequired } from "./verification.service.js";
 
 const BCRYPT_COST = 12;
 let dummyHash: Promise<string> | null = null;
@@ -18,6 +20,12 @@ export interface ClientMeta {
   ip?: string | null;
   userAgent?: string | null;
 }
+
+export type Verification = { email: string; challengeId: string | null; matchNumber: number | null; codeSent: boolean };
+
+export type AuthOutcome =
+  | { kind: "session"; session: SessionPayload; refreshToken: string }
+  | { kind: "verify"; userId: string; verification: Verification };
 
 export interface SessionPayload {
   accessToken: string;
@@ -85,25 +93,28 @@ export async function buildSession(userId: string, preferredOrgId: string | null
   };
 }
 
-export async function register(input: { name: string; email: string; password: string; organizationName?: string; domain?: string }, meta: ClientMeta) {
+export async function register(input: { name: string; email: string; password: string; organizationName?: string; domain?: string }, meta: ClientMeta): Promise<AuthOutcome> {
   const email = input.email.trim().toLowerCase();
   if (await repo.findUserByEmail(email)) throw conflict("An account with this email already exists. Sign in instead.");
   const domain = input.domain ? extractDomain(input.domain) : null;
   if (domain && !isValidDomain(domain)) throw badRequest("That doesn't look like a domain. Try something like northwind.io");
   const passwordHash = await hashPassword(input.password);
-  const userId = await prisma.$transaction(async (tx) => {
-    const user = await tx.user.create({ data: { email, name: input.name.trim(), passwordHash, lastLoginAt: new Date() } });
+  const mustVerify = verificationRequired();
+  const { userId, challenge } = await prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({ data: { email, name: input.name.trim(), passwordHash, lastLoginAt: mustVerify ? null : new Date() } });
     const orgName = input.organizationName?.trim() || (domain ? brandFromDomain(domain) : `${input.name.trim()}'s workspace`);
     const org = await repo.createOrganizationWithOwner(tx, user.id, orgName, domain);
     if (domain) {
       await tx.onboarding.create({ data: { organizationId: org.id, domain, brand: brandFromDomain(domain), icp: { industries: [], titles: [], sizes: [], regions: [] } } });
     }
-    return user.id;
+    return { userId: user.id, challenge: mustVerify ? await createChallenge(user.id, "VERIFY", tx) : null };
   });
-  return buildSession(userId, null, meta);
+  if (!challenge) return { kind: "session", ...(await buildSession(userId, null, meta)) };
+  await sendChallengeMail(email, challenge);
+  return { kind: "verify", userId, verification: { email, ...forScreen(challenge) } };
 }
 
-export async function login(emailRaw: string, password: string, meta: ClientMeta) {
+export async function login(emailRaw: string, password: string, meta: ClientMeta): Promise<AuthOutcome> {
   const email = emailRaw.trim().toLowerCase();
   const key = `${meta.ip ?? "?"}:${email}`;
   if ((await failureCount(key)) >= MAX_FAILURES) throw tooManyRequests("Too many attempts, try again in a few minutes");
@@ -115,8 +126,11 @@ export async function login(emailRaw: string, password: string, meta: ClientMeta
   }
   if (user.status !== "ACTIVE") throw forbidden("This account has been disabled");
   await clearFailures(key);
+  if (verificationRequired() && !user.emailVerifiedAt) {
+    return { kind: "verify", userId: user.id, verification: await startVerification(user.id, user.email) };
+  }
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
-  return buildSession(user.id, null, meta);
+  return { kind: "session", ...(await buildSession(user.id, null, meta)) };
 }
 
 export async function refresh(rawToken: string | undefined, preferredOrgId: string | null, meta: ClientMeta) {
@@ -177,7 +191,7 @@ export async function oauthSignIn(provider: string, providerAccountId: string, e
       userId = byEmail.id;
     } else {
       userId = await prisma.$transaction(async (tx) => {
-        const user = await tx.user.create({ data: { email: normalized, name } });
+        const user = await tx.user.create({ data: { email: normalized, name, emailVerifiedAt: new Date() } });
         const domain = normalized.split("@")[1] ?? null;
         await repo.createOrganizationWithOwner(tx, user.id, name ? `${name}'s workspace` : "My workspace", domain && isValidDomain(domain) ? domain : null);
         return user.id;
@@ -188,5 +202,6 @@ export async function oauthSignIn(provider: string, providerAccountId: string, e
   const user = await repo.findUserById(userId);
   if (!user || user.status !== "ACTIVE") throw forbidden("This account has been disabled");
   await prisma.user.update({ where: { id: userId }, data: { lastLoginAt: new Date() } });
+  await prisma.user.updateMany({ where: { id: userId, emailVerifiedAt: null }, data: { emailVerifiedAt: new Date() } });
   return buildSession(userId, null, meta);
 }

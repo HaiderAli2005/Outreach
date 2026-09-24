@@ -22,6 +22,24 @@ export interface Session {
   activeOrganizationId: string | null;
 }
 
+export interface Verification {
+  email?: string;
+  challengeId: string | null;
+  matchNumber: number | null;
+  codeSent: boolean;
+}
+
+export type AuthResult = Session | { verificationRequired: true; verification: Verification };
+
+export const needsVerification = (r: AuthResult): r is { verificationRequired: true; verification: Verification } => "verificationRequired" in r;
+
+export interface ChallengeState {
+  status: "PENDING" | "APPROVED" | "FAILED" | "EXPIRED";
+  purpose: "VERIFY" | "RESET" | null;
+  attemptsLeft: number;
+  expiresAt: string | null;
+}
+
 export interface Meta {
   page?: number;
   limit?: number;

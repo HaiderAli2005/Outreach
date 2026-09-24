@@ -31,6 +31,29 @@ required `X-Requested-With: aperture` header (a cross-site form cannot set it) a
 bcrypt, cost 12. Minimum 8 characters, maximum 128. Login is rate-limited per IP and per email (Redis
 store when available, memory otherwise): 8 failures per 15 minutes.
 
+## Email verification and password reset (number match)
+
+Ported from RankHouse (`server/controllers/auth/emailChallenge.js`), same rules, rebuilt on Prisma:
+
+* The screen that starts the flow shows one two-digit number. The email shows three. Tapping the
+  matching one completes the step and the waiting screen carries on by itself (it polls
+  `/auth/challenge/status` every 3 seconds).
+* "Try another way" emails a 6-digit code to type on the waiting screen. A plain link at the bottom of
+  the email works when the original screen is gone.
+* Every challenge (`EmailChallenge` table) is single use, expires (24 hours to verify, 1 hour to
+  reset) and dies after 3 wrong answers. A dead challenge closes the number way for that account for
+  24 hours: the next email carries the code instead.
+* The waiting screen only ever holds the challenge id and its number, never the email token or the
+  code, so it cannot answer its own challenge.
+* After sign up the browser gets a short-lived `ap_claim` cookie (24 hours, httpOnly). Once the email
+  is confirmed on any device, `/auth/claim` swaps it for a normal session on that browser. Resending
+  the email also needs the claim, so nobody can trigger emails for someone else's account.
+* Forgot password answers the same way for unknown emails and sends nothing, so it can't be used to
+  find out who has an account. A completed reset revokes every refresh token for the user.
+* It is on only when `MAIL_HOST`, `MAIL_USER`, `MAIL_PASS` and `MAIL_FROM` are set. Without them sign up
+  signs in straight away, as before, and "Forgot password?" is hidden. Accounts that existed before
+  the migration, Google sign-ins and the seeded admin count as verified.
+
 ## Google OAuth 2.0
 
 Authorization code flow with PKCE and `state`:

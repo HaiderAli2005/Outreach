@@ -26,6 +26,9 @@ import type {
   Payment,
   Provider,
   Session,
+  AuthResult,
+  ChallengeState,
+  Verification,
   SettingsView,
   SubscriptionView,
   SystemLog,
@@ -122,10 +125,47 @@ export const api = createApi({
   baseQuery,
   tagTypes: ["Me", "Onboarding", "Cockpit", "Nav", "Inbox", "Thread", "Contacts", "Batches", "Campaigns", "Blocklist", "Settings", "Autopilot", "Metrics", "Mailboxes", "Members", "Org", "Logs", "Billing", "Usage", "Admin"],
   endpoints: (b) => ({
-    providers: b.query<{ google: boolean }, void>({ query: () => "/auth/providers", transformResponse: unwrap }),
-    login: b.mutation<Session, { email: string; password: string }>({ query: (body) => ({ url: "/auth/login", method: "POST", body }), transformResponse: unwrap }),
-    register: b.mutation<Session, { name: string; email: string; password: string; organizationName?: string; domain?: string }>({
+    providers: b.query<{ google: boolean; passwordReset: boolean }, void>({ query: () => "/auth/providers", transformResponse: unwrap }),
+    login: b.mutation<AuthResult, { email: string; password: string }>({ query: (body) => ({ url: "/auth/login", method: "POST", body }), transformResponse: unwrap }),
+    register: b.mutation<AuthResult, { name: string; email: string; password: string; organizationName?: string; domain?: string }>({
       query: (body) => ({ url: "/auth/register", method: "POST", body }),
+      transformResponse: unwrap,
+    }),
+    challengeStatus: b.query<ChallengeState, string>({
+      query: (challengeId) => ({ url: "/auth/challenge/status", method: "POST", body: { challengeId } }),
+      transformResponse: unwrap,
+      keepUnusedDataFor: 0,
+    }),
+    challengeCode: b.mutation<{ purpose: "VERIFY"; session: Session } | { purpose: "RESET"; token: string }, { challengeId: string; code: string }>({
+      query: (body) => ({ url: "/auth/challenge/code", method: "POST", body }),
+      transformResponse: unwrap,
+    }),
+    challengeSendCode: b.mutation<{ sent: boolean }, string>({
+      query: (challengeId) => ({ url: "/auth/challenge/send-code", method: "POST", body: { challengeId } }),
+      transformResponse: unwrap,
+    }),
+    resendVerification: b.mutation<Verification & { verified?: boolean }, void>({
+      query: () => ({ url: "/auth/verify-email/resend", method: "POST", body: {} }),
+      transformResponse: unwrap,
+    }),
+    claimSession: b.mutation<{ claimed: true; session: Session } | { claimed: false; reason: string }, void>({
+      query: () => ({ url: "/auth/claim", method: "POST", body: {} }),
+      transformResponse: unwrap,
+    }),
+    confirmEmail: b.mutation<Session, { token: string; n?: string }>({
+      query: (body) => ({ url: "/auth/verify-email", method: "POST", body }),
+      transformResponse: unwrap,
+    }),
+    forgotPassword: b.mutation<Verification, { email: string }>({
+      query: (body) => ({ url: "/auth/password/forgot", method: "POST", body }),
+      transformResponse: unwrap,
+    }),
+    checkResetLink: b.mutation<{ ok: boolean }, { token: string; n?: string }>({
+      query: (body) => ({ url: "/auth/password/check", method: "POST", body }),
+      transformResponse: unwrap,
+    }),
+    resetPassword: b.mutation<{ updated: boolean }, { token: string; password: string }>({
+      query: (body) => ({ url: "/auth/password/reset", method: "POST", body }),
       transformResponse: unwrap,
     }),
     logout: b.mutation<{ signedOut: boolean }, void>({ query: () => ({ url: "/auth/logout", method: "POST" }), transformResponse: unwrap }),
@@ -419,6 +459,15 @@ export const {
   useProvidersQuery,
   useLoginMutation,
   useRegisterMutation,
+  useChallengeStatusQuery,
+  useChallengeCodeMutation,
+  useChallengeSendCodeMutation,
+  useResendVerificationMutation,
+  useClaimSessionMutation,
+  useConfirmEmailMutation,
+  useForgotPasswordMutation,
+  useCheckResetLinkMutation,
+  useResetPasswordMutation,
   useLogoutMutation,
   useAcceptInviteMutation,
   usePlansQuery,

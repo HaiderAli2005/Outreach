@@ -15,18 +15,55 @@ enum UserStatus {
 }
 
 model User {
-  id              String         @id @default(cuid())
-  email           String         @unique
+  id              String           @id @default(cuid())
+  email           String           @unique
   passwordHash    String?
   name            String?
-  status          UserStatus     @default(ACTIVE)
-  isPlatformAdmin Boolean        @default(false)
+  status          UserStatus       @default(ACTIVE)
+  isPlatformAdmin Boolean          @default(false)
+  emailVerifiedAt DateTime?
   lastLoginAt     DateTime?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   memberships     Membership[]
   oauthAccounts   OAuthAccount[]
   refreshTokens   RefreshToken[]
+  emailChallenges EmailChallenge[]
+}
+
+enum ChallengePurpose {
+  VERIFY
+  RESET
+}
+
+enum ChallengeStatus {
+  PENDING
+  APPROVED
+  FAILED
+  EXPIRED
+}
+
+model EmailChallenge {
+  id            String           @id
+  userId        String
+  purpose       ChallengePurpose
+  token         String           @unique
+  matchNumber   Int
+  decoyOne      Int
+  decoyTwo      Int
+  code          String
+  attempts      Int              @default(0)
+  status        ChallengeStatus  @default(PENDING)
+  consumedAt    DateTime?
+  failedAt      DateTime?
+  expiresAt     DateTime
+  createdAt     DateTime         @default(now())
+  answeredIp    String?
+  answeredAgent String?
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, status])
+  @@index([expiresAt])
 }
 
 model OAuthAccount {
@@ -42,16 +79,16 @@ model OAuthAccount {
 }
 
 model RefreshToken {
-  id         String    @id @default(cuid())
-  userId     String
-  tokenHash  String    @unique
-  familyId   String
-  expiresAt  DateTime
-  revokedAt  DateTime?
-  userAgent  String?
-  ip         String?
-  createdAt  DateTime  @default(now())
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  familyId  String
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  ip        String?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([familyId])
@@ -85,25 +122,25 @@ model Organization {
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
-  memberships      Membership[]
-  settings         OrgSettings?
-  onboarding       Onboarding?
-  subscription     Subscription?
-  payments         Payment[]
-  invoices         Invoice[]
-  credentials      IntegrationCredential[]
-  campaigns        Campaign[]
-  contacts         Contact[]
-  companies        Company[]
-  messages         Message[]
-  blocklist        BlocklistEntry[]
-  batches          WeeklyBatch[]
-  autoReplyQueue   AutoReplyQueue[]
-  autoReplyLog     AutoReplyDecision[]
-  systemLogs       SystemLog[]
-  usage            UsageCounter[]
-  sendingDomains   SendingDomain[]
-  mailboxes        Mailbox[]
+  memberships    Membership[]
+  settings       OrgSettings?
+  onboarding     Onboarding?
+  subscription   Subscription?
+  payments       Payment[]
+  invoices       Invoice[]
+  credentials    IntegrationCredential[]
+  campaigns      Campaign[]
+  contacts       Contact[]
+  companies      Company[]
+  messages       Message[]
+  blocklist      BlocklistEntry[]
+  batches        WeeklyBatch[]
+  autoReplyQueue AutoReplyQueue[]
+  autoReplyLog   AutoReplyDecision[]
+  systemLogs     SystemLog[]
+  usage          UsageCounter[]
+  sendingDomains SendingDomain[]
+  mailboxes      Mailbox[]
 }
 
 model Membership {

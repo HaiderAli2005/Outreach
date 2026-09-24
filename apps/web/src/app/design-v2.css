@@ -662,3 +662,10 @@ section.sec{scroll-margin-top:70px}
 a.au-sso{text-decoration:none}
 a.obh-exit{text-decoration:none}
 #onboard .ob-foot .spinner{border-color:rgba(21,16,12,.25);border-top-color:#15100C}
+#onboard .nm-num{width:104px;height:104px;margin:26px auto 14px;border-radius:50%;display:grid;place-items:center;font:600 44px/1 var(--f-display);letter-spacing:-.02em;color:#F2EEE7;background:radial-gradient(circle at 50% 35%,rgba(217,178,123,.16),rgba(217,178,123,.03) 70%);box-shadow:inset 0 0 0 2px #D4AE72,0 0 0 10px rgba(217,178,123,.07)}
+#onboard .nm-wait{display:flex;align-items:center;justify-content:center;gap:10px;margin:0;font:400 13px var(--f-body);color:#9E978D}
+#onboard .nm-wait .au-spin{border-color:rgba(212,174,114,.25);border-top-color:#D4AE72}
+#onboard .nm-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:22px;padding-top:16px;border-top:1px solid rgba(255,255,255,.07)}
+#onboard .nm-actions .au-link:disabled{opacity:.6;cursor:progress}
+#onboard .nm-code{text-align:center;letter-spacing:.45em;font:500 20px var(--f-mono)}
+#onboard a.au-btn{text-decoration:none}

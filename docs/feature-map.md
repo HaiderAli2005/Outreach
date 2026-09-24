@@ -307,8 +307,9 @@ is replaced by registration and invites. `run-migrations.js` is replaced by `pri
 
 | Feature | Where | Status |
 |---|---|---|
-| Public domain check on the landing page (real site fetch, MX and SPF lookup, rate limited) | landing hero · `POST /public/domain-scan` | `[x]` |
 | Outbound fetch guard (only public IPs, manual redirect checks) for every site read | `integrations/site.ts` | `[x]` |
 | Create a workspace for a signed-in user without one (admin accounts, removed members) | `/app` empty state, `/onboarding` · `POST /organizations` | `[x]` |
+| Email verification with number match, from RankHouse (on when Mailgun is set) | sign up / sign in waiting screen, `/verify` · `/auth/verify-email`, `/auth/challenge/*`, `/auth/claim` | `[x]` |
+| Forgot password with number match, from RankHouse | `/forgot-password`, `/reset-password` · `/auth/password/*` | `[x]` |
 | Accept a team invite by link | `/invite?token=` · `/auth/accept-invite` | `[x]` |
 | Switch between organizations | rail select · `/auth/refresh` with `organizationId` | `[x]` |

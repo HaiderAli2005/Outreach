@@ -36,6 +36,15 @@ Legend: 🔓 public · 🔑 signed in · 🏢 organization member · 👑 org ow
 | GET | `/auth/oauth/google/start` | 🔓 | — |
 | GET | `/auth/oauth/google/callback` | 🔓 | — |
 | POST | `/auth/accept-invite` | 🔑 | — |
+| POST | `/auth/challenge/status` | 🔓 rate limited | — (waiting screen polls; returns state only) |
+| POST | `/auth/challenge/send-code` | 🔓 1 per minute per challenge | — (emails the 6-digit code) |
+| POST | `/auth/challenge/code` | 🔓 rate limited | — (typed code: signs in for VERIFY, returns the reset token for RESET) |
+| POST | `/auth/verify-email` | 🔓 rate limited | — (email link, with or without `n`) |
+| POST | `/auth/verify-email/resend` | 🔓 signup claim cookie | — |
+| POST | `/auth/claim` | 🔓 signup claim cookie | — (session for the screen that signed up, once verified) |
+| POST | `/auth/password/forgot` | 🔓 10 per 15 min | — (same answer whether or not the email exists) |
+| POST | `/auth/password/check` | 🔓 rate limited | — (reset link, with or without `n`) |
+| POST | `/auth/password/reset` | 🔓 rate limited | — (needs an approved reset challenge; signs out every other session) |
 
 ## Organization
 

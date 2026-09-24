@@ -6,7 +6,8 @@ import { Icon } from "@/components/ui/Icon";
 import { useAppDispatch } from "@/store";
 import { errorMessage, useLoginMutation, useProvidersQuery, useRegisterMutation } from "@/store/api";
 import { sessionReceived } from "@/store/authSlice";
-import type { Session } from "@/lib/types";
+import { needsVerification, type Session, type Verification } from "@/lib/types";
+import { NumberMatch } from "@/components/auth/NumberMatch";
 
 function strength(v: string): number {
   if (!v) return 0;
@@ -42,6 +43,7 @@ export function AuthCard({
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [err, setErr] = useState<{ msg: string; field?: string } | null>(null);
+  const [pending, setPending] = useState<Verification | null>(null);
   const firstRef = useRef<HTMLInputElement>(null);
   const up = mode === "up";
   const busy = loginState.isLoading || registerState.isLoading;
@@ -66,15 +68,34 @@ export function AuthCard({
     if (up && password.length < 8) return setErr({ msg: "Use at least 8 characters for your password.", field: "password" });
     if (!up && !password) return setErr({ msg: "Enter your password.", field: "password" });
     try {
-      const session = up ? await register({ name: name.trim(), email, password, domain }).unwrap() : await login({ email, password }).unwrap();
-      dispatch(sessionReceived(session));
-      onDone(session);
+      const result = up ? await register({ name: name.trim(), email, password, domain }).unwrap() : await login({ email, password }).unwrap();
+      if (needsVerification(result)) return setPending(result.verification);
+      dispatch(sessionReceived(result));
+      onDone(result);
     } catch (e2) {
       setErr({ msg: errorMessage(e2) });
     }
   }
 
   const bad = (f: string) => (err?.field === f ? " bad" : "");
+
+  if (pending)
+    return (
+      <div className="au-page">
+        <div className="au-shell">
+          <section className="au-col">
+            <NumberMatch
+              purpose="VERIFY"
+              email={pending.email ?? email}
+              verification={pending}
+              onSession={onDone}
+              onSignIn={() => (setPending(null), setPassword(""), onMode("in"), setStage("details"))}
+            />
+          </section>
+        </div>
+        <p className="au-legal">Nothing is sent from your account until your email is confirmed.</p>
+      </div>
+    );
 
   return (
     <div className="au-page">
@@ -194,6 +215,13 @@ export function AuthCard({
                       </button>
                     </div>
                   </div>
+                  {!up && providers?.passwordReset ? (
+                    <p className="au-hint" style={{ textAlign: "right", marginTop: -6 }}>
+                      <Link className="au-link" href={`/forgot-password?email=${encodeURIComponent(email)}`}>
+                        Forgot password?
+                      </Link>
+                    </p>
+                  ) : null}
                   {up ? (
                     <>
                       <div className="au-meter" data-s={s} aria-hidden="true">
