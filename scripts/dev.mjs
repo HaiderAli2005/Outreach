@@ -14,5 +14,5 @@ const procs = ["api", "web"].map((name) => {
   return p;
 });
 
-console.log("Starting the API on http://localhost:4000 and the web app on http://localhost:3000. Press Ctrl+C to stop.");
+console.log("Starting the API on http://localhost:4000 and the web app on http://localhost:3100. Press Ctrl+C to stop.");
 process.on("SIGINT", () => procs.forEach((p) => p.kill()));

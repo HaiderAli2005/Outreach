@@ -22,8 +22,9 @@ local secrets and `apps/web/.env.local`, applies migrations (never resets data) 
 the first run it also creates a platform admin and prints its password once. `npm run dev` runs the API
 and the web app together.
 
-The web app runs on http://localhost:3000 and proxies `/api` to the API on port 4000. The Docker
-Postgres listens on port 5433 so it doesn't clash with a Postgres already installed on 5432.
+The web app runs on http://localhost:3100 and proxies `/api` to the API on port 4000. The Docker
+Postgres listens on port 55432 and the web app on 3100 so they don't clash with other local projects
+that commonly use 5432, 5433 or 3000.
 
 Integrations switch on when their keys are set in `apps/api/.env`: Stripe (billing), OpenAI (site
 analysis and sequences), Apollo (market sizing and leads), Smartlead (campaigns and mailboxes), Google

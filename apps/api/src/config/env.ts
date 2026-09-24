@@ -9,7 +9,7 @@ const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
   LOG_LEVEL: z.string().default("info"),
-  WEB_ORIGIN: z.string().default("http://localhost:3000"),
+  WEB_ORIGIN: z.string().default("http://localhost:3100"),
   PUBLIC_API_URL: z.string().default("http://localhost:4000"),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: optional,

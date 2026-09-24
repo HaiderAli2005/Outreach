@@ -13,6 +13,6 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-start "" cmd /c "timeout /t 25 >nul & start http://localhost:3000"
+start "" cmd /c "timeout /t 25 >nul & start http://localhost:3100"
 call npm run dev
 pause

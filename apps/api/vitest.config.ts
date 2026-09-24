@@ -10,7 +10,7 @@ export default defineConfig({
     hookTimeout: 60_000,
     env: {
       NODE_ENV: "test",
-      DATABASE_URL: process.env.TEST_DATABASE_URL ?? "postgresql://aperture:aperture@localhost:5433/aperture_test?schema=public",
+      DATABASE_URL: process.env.TEST_DATABASE_URL ?? "postgresql://aperture:aperture@localhost:55432/aperture_test?schema=public",
       REDIS_URL: "",
       JWT_ACCESS_SECRET: "test-access-secret-that-is-long-enough-123",
       ENCRYPTION_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
