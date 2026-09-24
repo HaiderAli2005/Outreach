@@ -37,7 +37,8 @@ npm test
 npm run build
 ```
 
-API tests need the `aperture_test` database that `npm run db:up` creates.
+`npm test` runs the API tests (they need the `aperture_test` database that `npm run db:up` creates)
+and then the web tests, which run in jsdom with the network mocked.
 
 ## Deploying
 

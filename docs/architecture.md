@@ -21,12 +21,14 @@ aperture-app/
 │   │   │   ├── modules/     one folder per API area: routes → controller → service → repository
 │   │   │   └── jobs/        scheduled work, triggered over HTTP by Cloud Scheduler
 │   │   └── test/            vitest + supertest integration tests against PostgreSQL
-│   └── web/                 Next.js 14 (App Router) + TypeScript + Redux Toolkit (RTK Query) + Tailwind
+│   └── web/                 Next.js 16 (App Router) + TypeScript + Redux Toolkit (RTK Query) + Tailwind
 │       └── src/
 │           ├── app/         routes: marketing, onboarding, signin, app/*, admin/*
 │           ├── components/  design-system primitives, shells, feature components
 │           ├── store/       Redux store, RTK Query API slices, UI slices
 │           └── lib/         formatting helpers
+│       └── test/            vitest + Testing Library (jsdom): sizing and format rules, auth refresh,
+│                            domain search, sign up / sign in, launch progress
 ├── infra/                   docker-compose (local Postgres + Redis), Cloud Build, Cloud Run, Scheduler
 └── docs/
 ```

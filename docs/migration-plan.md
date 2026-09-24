@@ -13,7 +13,7 @@
 | 7 | Stripe | done |
 | 8 | SaaS: organizations, roles, entitlements, platform admin | done |
 | 9 | Performance pass (denormalised thread fields, indexes, RTK Query caching, streaming CSV) | done |
-| 10 | Tests and fixes | done |
+| 10 | Tests and fixes (API integration tests, web unit and component tests) | done |
 | 11 | Cloud Run / Cloud SQL / Memorystore / Secret Manager deployment config | written; see `deployment.md` (images not built in the authoring sandbox because Docker Hub rate-limited the base image pull) |
 
 ## Dependency review
