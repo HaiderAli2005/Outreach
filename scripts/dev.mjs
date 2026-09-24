@@ -1,4 +1,12 @@
-import { spawn } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
+
+try {
+  console.log("Applying any new database migrations (existing data is kept)...");
+  execSync("npm run prisma:deploy -w apps/api", { stdio: "inherit" });
+} catch {
+  console.error("\nCould not update the database. Check Docker Desktop is running and apps/api/.env exists (npm run setup creates it), then try again.");
+  process.exit(1);
+}
 
 const procs = ["api", "web"].map((name) => {
   const p = spawn("npm", ["run", `dev:${name}`], { stdio: ["ignore", "pipe", "pipe"], shell: true });
