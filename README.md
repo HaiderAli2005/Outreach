@@ -13,15 +13,14 @@ daily volume, buys sending domains and inboxes in one Stripe checkout, and launc
 Requirements: Node 20 or newer, Docker (or your own PostgreSQL 16 and Redis 7).
 
 ```bash
-npm install
-npm run db:up
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env.local
-npm run prisma:migrate -w apps/api
-ADMIN_EMAIL=you@example.com ADMIN_PASSWORD='a long password' npm run db:seed -w apps/api
-npm run dev:api
-npm run dev:web
+npm run setup
+npm run dev
 ```
+
+`npm run setup` starts Postgres and Redis in Docker, installs packages, creates `apps/api/.env` with fresh
+local secrets and `apps/web/.env.local`, applies migrations (never resets data) and seeds the plans. On
+the first run it also creates a platform admin and prints its password once. `npm run dev` runs the API
+and the web app together.
 
 The web app runs on http://localhost:3000 and proxies `/api` to the API on port 4000. The Docker
 Postgres listens on port 5433 so it doesn't clash with a Postgres already installed on 5432.
