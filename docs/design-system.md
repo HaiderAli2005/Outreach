@@ -6,7 +6,7 @@ the values below are the final, effective ones.
 
 ## Tokens
 
-Defined once as CSS variables in `apps/web/src/app/globals.css` and mapped into Tailwind in
+Defined once as CSS variables in `apps/client/src/app/globals.css` and mapped into Tailwind in
 `tailwind.config.ts`, so components use either `var(--gold)` or `text-gold`.
 
 | Token | Value | Use |

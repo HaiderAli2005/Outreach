@@ -20,10 +20,10 @@ for (let i = 0; ; i++) {
 }
 run("npm install");
 
-const apiEnv = "apps/api/.env";
+const apiEnv = "apps/server/.env";
 let admin = null;
 if (!existsSync(apiEnv)) {
-  const text = readFileSync("apps/api/.env.example", "utf8")
+  const text = readFileSync("apps/server/.env.example", "utf8")
     .replace(/^JWT_ACCESS_SECRET=.*$/m, `JWT_ACCESS_SECRET=${secret(48)}`)
     .replace(/^ENCRYPTION_KEY=.*$/m, `ENCRYPTION_KEY=${randomBytes(32).toString("base64")}`)
     .replace(/^JOBS_SECRET=.*$/m, `JOBS_SECRET=${secret(32)}`)
@@ -33,13 +33,13 @@ if (!existsSync(apiEnv)) {
   admin = { email: "admin@aperture.local", password: secret(20) };
   console.log(`\ncreated ${apiEnv} with fresh local secrets`);
 }
-if (!existsSync("apps/web/.env.local")) {
-  writeFileSync("apps/web/.env.local", readFileSync("apps/web/.env.example", "utf8"));
-  console.log("created apps/web/.env.local");
+if (!existsSync("apps/client/.env.local")) {
+  writeFileSync("apps/client/.env.local", readFileSync("apps/client/.env.example", "utf8"));
+  console.log("created apps/client/.env.local");
 }
 
-run("npm run prisma:deploy -w apps/api");
-run("npm run db:seed -w apps/api", admin ? { ADMIN_EMAIL: admin.email, ADMIN_PASSWORD: admin.password } : {});
+run("npm run prisma:deploy -w apps/server");
+run("npm run db:seed -w apps/server", admin ? { ADMIN_EMAIL: admin.email, ADMIN_PASSWORD: admin.password } : {});
 
 console.log("\nSetup finished. Start the app with: npm run dev");
 if (admin) console.log(`Platform admin for /admin: ${admin.email} / ${admin.password}  (shown once, save it)`);

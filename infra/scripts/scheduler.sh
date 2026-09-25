@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Creates or updates one Cloud Scheduler job per background job in apps/api/src/jobs/registry.ts.
+# Creates or updates one Cloud Scheduler job per background job in apps/server/src/jobs/registry.ts.
 set -euo pipefail
 PROJECT="${PROJECT:?set PROJECT}"
 REGION="${REGION:-europe-west1}"

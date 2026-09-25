@@ -163,6 +163,9 @@ database is unreachable).
 |---|---|---|---|
 | POST | `/onboarding/answers` | org owner/admin, AI rate limit | Used when the site can't be read. Builds the facts and buyer groups from three answers (sell, who, countries). |
 | GET | `/onboarding/market?refresh=1` | org member | Apollo counts per buyer group (all and verified emails) plus a 25 person sample per group. Cached 24h per set of enabled groups. |
+| GET | `/onboarding/keywords?group=seg_1` | org member | People each keyword finds on its own inside one audience, with a `none` or `broad` flag. Cached 24h. |
+| GET | `/analyses/:id/stream?from=<seq>` | org member | Server-Sent Events for one analysis run: `run.start`, `step.start`, `step.log`, `item.found`, `step.done`, `run.done`, `run.error`, plus a heartbeat every 15s. Replays stored events after `from` (or `Last-Event-ID`) and then follows the run. Never starts or repeats work. |
+| GET | `/orgs/:id/provisioning/stream` | org member, own org only | The setup checklist after payment (`buy_domains`, `dns`, `mailboxes`, `warmup`, `campaign`) in the same event shape. Ends once sending starts. |
 | POST | `/organizations` | signed in, no organization needed | Creates a workspace (and starts setup when a domain is given). Up to 5 owned workspaces per user. |
 | POST | `/webhooks/smartlead/:orgToken` | the organization's webhook token | Per-tenant URL. Events for a campaign that belongs to another organization are ignored. |
 

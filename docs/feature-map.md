@@ -4,7 +4,7 @@ Every feature found in `outreach-saas` (server controllers, libs, jobs, client p
 lives in the rebuild. Status markers: `[ ]` not started, `[~]` in progress / partial, `[x]` complete
 end-to-end (UI → API → validation → service → database → integration → UI update).
 
-Paths: web routes are under `apps/web/src/app`, API routes under `/api/v1`.
+Paths: web routes are under `apps/client/src/app`, API routes under `/api/v1`.
 
 ---
 
@@ -310,6 +310,7 @@ is replaced by registration and invites. `run-migrations.js` is replaced by `pri
 | Outbound fetch guard (only public IPs, manual redirect checks) for every site read | `integrations/site.ts` | `[x]` |
 | Create a workspace for a signed-in user without one (admin accounts, removed members) | `/app` empty state, `/onboarding` · `POST /organizations` | `[x]` |
 | Email verification with number match, from RankHouse (on when Mailgun is set) | sign up / sign in waiting screen, `/verify` · `/auth/verify-email`, `/auth/challenge/*`, `/auth/claim` | `[x]` |
+| Business analysis prompt v1: brand details, 3 to 6 ranked audiences, code checks with `repairsMade` (see `analysis.md`) | Analysis step · `/onboarding/analysis`, `/onboarding/answers` | `[x]` |
 | Forgot password with number match, from RankHouse | `/forgot-password`, `/reset-password` · `/auth/password/*` | `[x]` |
 | Accept a team invite by link | `/invite?token=` · `/auth/accept-invite` | `[x]` |
 | Switch between organizations | rail select · `/auth/refresh` with `organizationId` | `[x]` |

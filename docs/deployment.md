@@ -4,13 +4,13 @@
 
 | Piece | Google Cloud product | Notes |
 |---|---|---|
-| API (`apps/api`) | Cloud Run service `aperture-api` | `infra/Dockerfile.api --target runtime`. Keep `--min-instances 1` and `--no-cpu-throttling` so reply classification can finish after a webhook response. |
-| Web (`apps/web`) | Cloud Run service `aperture-web` | `infra/Dockerfile.web`. Next.js standalone server. |
+| API (`apps/server`) | Cloud Run service `aperture-api` | `infra/Dockerfile.api --target runtime`. Keep `--min-instances 1` and `--no-cpu-throttling` so reply classification can finish after a webhook response. |
+| Web (`apps/client`) | Cloud Run service `aperture-web` | `infra/Dockerfile.web`. Next.js standalone server. |
 | Database | Cloud SQL for PostgreSQL 16 | Private IP or the Cloud SQL connector (`--set-cloudsql-instances`). |
 | Migrations | Cloud Run job `aperture-migrate` | `infra/Dockerfile.api --target migrate` runs `prisma migrate deploy` before each API deploy. |
 | Redis (optional) | Memorystore for Redis | Rate-limit store, login throttling and job locks. Without it the API falls back to in-memory limits and Postgres advisory locks. Needs a Serverless VPC connector. |
 | Secrets | Secret Manager | Every sensitive env var is mounted with `--set-secrets`. `infra/scripts/secrets.sh` creates them. |
-| Background jobs | Cloud Scheduler | `infra/scripts/scheduler.sh` creates one HTTP job per entry in `apps/api/src/jobs/registry.ts`, calling `POST /api/v1/jobs/:name/run` with `X-Jobs-Secret`. |
+| Background jobs | Cloud Scheduler | `infra/scripts/scheduler.sh` creates one HTTP job per entry in `apps/server/src/jobs/registry.ts`, calling `POST /api/v1/jobs/:name/run` with `X-Jobs-Secret`. |
 | File storage | Cloud Storage | Not needed today: CSV imports are read in the request and exports are streamed. Attachments stay as Smartlead URLs. |
 | Images | Artifact Registry repo `aperture` | Used by `infra/cloudbuild.yaml`. |
 
@@ -42,7 +42,7 @@ Then, once:
 
 - Create the first platform admin: run the migrate image as a one-off Cloud Run job with the command
   `npx tsx prisma/seed.ts` and `ADMIN_EMAIL` / `ADMIN_PASSWORD` set. Plans are upserted on every API start.
-- Create Stripe prices: `npm run stripe:prices -w apps/api` with `STRIPE_SECRET_KEY` set, then store the
+- Create Stripe prices: `npm run stripe:prices -w apps/server` with `STRIPE_SECRET_KEY` set, then store the
   printed price ids as `STRIPE_PRICE_*` secrets.
 - Add the Stripe webhook endpoint `https://<api>/api/v1/billing/webhook` for `invoice.paid`,
   `invoice.payment_failed`, `invoice.finalized`, `invoice.updated`, `customer.subscription.created`,
@@ -58,12 +58,12 @@ Then, once:
 
 ## Environment
 
-`apps/api/.env.example` and `apps/web/.env.example` list every variable with a description. The API
+`apps/server/.env.example` and `apps/client/.env.example` list every variable with a description. The API
 refuses to start in production when a required secret is missing or still a placeholder.
 
 ## Verification status
 
-The API production build (`npm run build -w apps/api` then `node dist/index.js`) and the web production
+The API production build (`npm run build -w apps/server` then `node dist/index.js`) and the web production
 build (`next build`, standalone output) were run and served traffic in the authoring environment. The
 Docker images themselves could not be built there because Docker Hub rate-limited the `node:22-slim`
 pull, so run `docker build -f infra/Dockerfile.api --target runtime .` and

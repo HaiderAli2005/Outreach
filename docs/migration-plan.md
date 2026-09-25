@@ -48,7 +48,7 @@ RTK Query. `@stripe/stripe-js` and `@stripe/react-stripe-js` are added for PCI-s
 
 ## Data migration from the MySQL database
 
-`apps/api/scripts/import-legacy.ts` is not included: the source database belongs to one customer and holds
+`apps/server/scripts/import-legacy.ts` is not included: the source database belongs to one customer and holds
 live personal data, so moving it is an operator decision. The mapping is documented in
 `database-schema.md`; an import would create one `Organization`, map `settings` → `OrgSettings` +
 `IntegrationCredential`, and copy campaigns, companies, contacts, messages, blocklist and batches with the

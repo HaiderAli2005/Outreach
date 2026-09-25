@@ -1,6 +1,6 @@
 # Database schema
 
-PostgreSQL 16 via Prisma. The authoritative definition is `apps/api/prisma/schema.prisma`; this document
+PostgreSQL 16 via Prisma. The authoritative definition is `apps/server/prisma/schema.prisma`; this document
 explains the shape and the reasons behind it.
 
 ## Source → new mapping

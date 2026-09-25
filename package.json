@@ -2,18 +2,18 @@
   "name": "aperture-app",
   "private": true,
   "workspaces": [
-    "apps/api",
-    "apps/web"
+    "apps/server",
+    "apps/client"
   ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "dev:api": "npm run dev -w apps/api",
-    "dev:web": "npm run dev -w apps/web",
-    "build": "npm run build -w apps/api && npm run build -w apps/web",
-    "test": "npm test -w apps/api && npm test -w apps/web",
-    "typecheck": "npm run typecheck -w apps/api && npm run typecheck -w apps/web",
+    "dev:server": "npm run dev -w apps/server",
+    "dev:client": "npm run dev -w apps/client",
+    "build": "npm run build -w apps/server && npm run build -w apps/client",
+    "test": "npm test -w apps/server && npm test -w apps/client",
+    "typecheck": "npm run typecheck -w apps/server && npm run typecheck -w apps/client",
     "db:up": "docker compose -f infra/docker-compose.yml up -d",
     "setup": "node scripts/setup.mjs",
     "dev": "node scripts/dev.mjs"

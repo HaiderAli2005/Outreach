@@ -12,7 +12,7 @@
 | Sending domain | per TLD, yearly | one-time invoice item added to the first invoice (price_data) |
 
 Sizing rules: an inbox sends at most 40 emails/day when warm; inboxes needed = ceil(volume / 40); domains
-needed = ceil(inboxes / inboxes-per-domain). These live in `apps/api/src/config/plans.ts` and are served
+needed = ceil(inboxes / inboxes-per-domain). These live in `apps/server/src/config/plans.ts` and are served
 by `/billing/plans`, so the landing slider, the onboarding steps and the backend total all use one formula.
 
 ## Flow
@@ -82,5 +82,5 @@ refunds and signature rejection.
 ```bash
 stripe login
 stripe listen --forward-to localhost:4000/api/v1/billing/webhook   # prints whsec_… → STRIPE_WEBHOOK_SECRET
-npm run stripe:prices -w apps/api                                   # creates the four recurring prices, prints env lines
+npm run stripe:prices -w apps/server                                   # creates the four recurring prices, prints env lines
 ```

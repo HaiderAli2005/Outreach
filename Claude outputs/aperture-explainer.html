@@ -1,0 +1,536 @@
+<title>Aperture Field Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..700&family=Geist:wght@300..600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    color-scheme: light;
+    --bg:#F2F5F7; --panel:#FFFFFF; --panel-2:#EAEFF3;
+    --ink:#0D1319; --ink-2:#44525F; --ink-3:#6F8091; --line:#D3DCE4;
+    --blue:#1B6E9E; --blue-soft:#E2EFF7;
+    --ok:#1E7A50; --ok-soft:#E1F2E9;
+    --warn:#8A5A11; --warn-soft:#F8EEDC;
+    --gap:#9B3B2F; --gap-soft:#F8E6E2;
+    --f-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+    --f-body:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+    --f-mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --bg:#0C1117; --panel:#121A22; --panel-2:#172129;
+      --ink:#E1EFF8; --ink-2:#A7B4C0; --ink-3:#74818F; --line:#243039;
+      --blue:#66B3E0; --blue-soft:#14242F;
+      --ok:#8CCB9F; --ok-soft:#122318;
+      --warn:#E3B25C; --warn-soft:#241C0E;
+      --gap:#E5836F; --gap-soft:#2A1613;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --bg:#0C1117; --panel:#121A22; --panel-2:#172129;
+    --ink:#E1EFF8; --ink-2:#A7B4C0; --ink-3:#74818F; --line:#243039;
+    --blue:#66B3E0; --blue-soft:#14242F;
+    --ok:#8CCB9F; --ok-soft:#122318;
+    --warn:#E3B25C; --warn-soft:#241C0E;
+    --gap:#E5836F; --gap-soft:#2A1613;
+  }
+
+  *,*::before,*::after{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font:400 16px/1.6 var(--f-body);margin:0;-webkit-font-smoothing:antialiased}
+  .wrap{width:min(920px,100%);margin-inline:auto;padding-inline:20px;padding-block:0 72px}
+  h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
+  h1{font-size:clamp(32px,6vw,52px);font-weight:700;letter-spacing:-.02em}
+  h2{font-size:clamp(23px,3.4vw,31px);font-weight:600;letter-spacing:-.01em}
+  h3{font-size:18px;font-weight:600;margin-top:28px}
+  p{margin:14px 0;max-width:68ch;color:var(--ink-2)}
+  p strong,li strong{color:var(--ink);font-weight:600}
+  ul,ol{max-width:68ch;color:var(--ink-2);padding-left:20px}
+  li{margin:7px 0}
+  a{color:var(--blue)}
+  code{font-family:var(--f-mono);font-size:.88em;background:var(--panel-2);padding:2px 5px;border-radius:5px;color:var(--ink)}
+  .mono{font-family:var(--f-mono)}
+
+  header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  header.top .inner{width:min(920px,100%);margin-inline:auto;padding:10px 20px;display:flex;gap:16px;align-items:center;overflow-x:auto}
+  header.top a{font:500 13px/1 var(--f-body);color:var(--ink-3);text-decoration:none;white-space:nowrap}
+  header.top a:hover{color:var(--ink)}
+
+  .hero{padding-block:56px 20px}
+  .kicker{font:500 12px/1 var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--blue)}
+  .lede{font-size:19px;color:var(--ink-2);max-width:62ch;margin-top:18px}
+  .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:28px}
+  .fact{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .fact b{display:block;font-family:var(--f-display);font-size:22px;font-weight:600}
+  .fact span{font-size:13px;color:var(--ink-3)}
+
+  section{padding-top:52px;scroll-margin-top:64px}
+  .num{font:500 12px/1 var(--f-mono);color:var(--ink-3);letter-spacing:.1em;display:block;margin-bottom:8px}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin:22px 0}
+  .card h3{margin-top:0}
+  .note{border-left:3px solid var(--blue);background:var(--blue-soft);border-radius:0 10px 10px 0;padding:14px 16px;margin:20px 0}
+  .note p{margin:0;color:var(--ink)}
+
+  .flow{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;margin:20px 0}
+  .node{flex:1 1 150px;min-width:140px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 13px;position:relative}
+  .node b{display:block;font:600 13px/1.3 var(--f-body)}
+  .node span{font-size:12px;color:var(--ink-3);display:block;margin-top:3px}
+  .node.accent{border-color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue)}
+  .arrow{align-self:center;color:var(--ink-3);font-size:15px;flex:0 0 auto}
+  @media (max-width:640px){ .arrow{transform:rotate(90deg);width:100%;text-align:center} }
+
+  .steps{counter-reset:s;margin:20px 0;display:grid;gap:10px}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px 16px 54px;position:relative}
+  .step::before{counter-increment:s;content:counter(s);position:absolute;left:16px;top:16px;width:24px;height:24px;border-radius:7px;background:var(--panel-2);color:var(--ink-2);font:600 12px/24px var(--f-mono);text-align:center}
+  .step h3{margin:0 0 4px;font-size:16px}
+  .step p{margin:6px 0 0;font-size:14.5px}
+  .step .tech{font-family:var(--f-mono);font-size:12.5px;color:var(--ink-3);margin-top:8px;display:block}
+
+  .chip{display:inline-block;font:500 11.5px/1 var(--f-body);padding:4px 8px;border-radius:999px;vertical-align:middle}
+  .chip.ok{background:var(--ok-soft);color:var(--ok)}
+  .chip.part{background:var(--warn-soft);color:var(--warn)}
+  .chip.gap{background:var(--gap-soft);color:var(--gap)}
+
+  .scroll{overflow-x:auto;margin:20px 0;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+  table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:560px}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font:600 12px/1.3 var(--f-body);letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);background:var(--panel-2)}
+  tr:last-child td{border-bottom:0}
+  td.mono,th.mono{font-family:var(--f-mono);font-size:13px}
+  .num-col{font-variant-numeric:tabular-nums}
+
+  details{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin:10px 0}
+  summary{font:600 15px/1.4 var(--f-body);cursor:pointer;color:var(--ink)}
+  summary::marker{color:var(--ink-3)}
+  details p{margin:10px 0 0;font-size:15px}
+
+  .divider{height:1px;background:var(--line);margin-top:52px}
+  footer{color:var(--ink-3);font-size:13px;padding-top:24px}
+  :focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:6px}
+</style>
+
+<header class="top">
+  <div class="inner">
+    <a href="#what">What it is</a>
+    <a href="#onboarding">Onboarding</a>
+    <a href="#analysis">Analysis</a>
+    <a href="#apollo">Apollo</a>
+    <a href="#engine">Engine</a>
+    <a href="#code">Code</a>
+    <a href="#status">Status</a>
+    <a href="#vs">vs AutoGTM</a>
+    <a href="#money">Money</a>
+    <a href="#qa">Q&amp;A</a>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="hero">
+    <span class="kicker">Field guide</span>
+    <h1>Aperture, explained from the ground up</h1>
+    <p class="lede">A cold outreach product where the customer types one thing, their website address, and everything else is set up for them. This page explains what it does, how the onboarding works, what happens inside the analysis, how the data reaches Apollo, what is finished and what is not.</p>
+    <div class="facts">
+      <div class="fact"><b>1 input</b><span>the customer's domain</span></div>
+      <div class="fact"><b>8 steps</b><span>account to campaign start</span></div>
+      <div class="fact"><b>~60s</b><span>to the free preview</span></div>
+      <div class="fact"><b>3 gaps</b><span>before it is fully automatic</span></div>
+    </div>
+  </div>
+
+  <section id="what">
+    <span class="num">01</span>
+    <h2>What we are building</h2>
+    <p>Cold email works, but setting it up is miserable. To do it properly a business owner has to buy a lead list, buy extra domains so their main domain does not get burned, configure DNS records they do not understand, create mailboxes, warm those mailboxes for two or three weeks, write the emails, connect a sending tool, and then watch bounces and replies every day. That is roughly two weeks of work and four subscriptions before a single email goes out.</p>
+    <p><strong>Aperture replaces all of that with one input.</strong> The customer types their website address. We read the site, work out what they sell and who buys it, show them how many of those buyers exist and what we would send, and once they pay we handle the domains, the inboxes, the warmup, the lead sourcing, the verification, the sending and the replies.</p>
+
+    <div class="flow">
+      <div class="node accent"><b>Website</b><span>the only thing we ask for</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>Who buys from you</b><span>and how many exist</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>Sending set up</b><span>domains, inboxes, warmup</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>Replies</b><span>sorted and answered</span></div>
+    </div>
+
+    <h3>How the system is put together</h3>
+    <div class="scroll">
+      <table>
+        <tr><th>Part</th><th>What it is</th><th class="mono">Where</th></tr>
+        <tr><td>Web app</td><td>Next.js, TypeScript, Tailwind, Redux Toolkit with RTK Query. Landing page, onboarding, customer app, admin area.</td><td class="mono">apps/web</td></tr>
+        <tr><td>API</td><td>Express 5, TypeScript, Prisma, PostgreSQL. Routes stay thin, logic sits in services, zod validates every request.</td><td class="mono">apps/api</td></tr>
+        <tr><td>Background jobs</td><td>Sourcing, sending, reply sync, auto-reply, blocklist, re-verify, billing sync, reports. Triggered by Cloud Scheduler calling the API.</td><td class="mono">apps/api/src/jobs</td></tr>
+        <tr><td>Outside services</td><td>OpenAI for analysis and copy, Apollo for finding people, MillionVerifier for checking emails, Smartlead for sending, Stripe for payment, Slack for alerts.</td><td class="mono">src/integrations</td></tr>
+        <tr><td>Infrastructure</td><td>Cloud Run, Cloud SQL, Memorystore for Redis, Secret Manager, Cloud Build.</td><td class="mono">infra/</td></tr>
+      </table>
+    </div>
+    <p>It is multi-tenant from the start: every row belongs to an <code>Organization</code>, people join it through a <code>Membership</code> with a role of owner, admin or member, and nothing is ever read without that scope.</p>
+  </section>
+
+  <section id="onboarding">
+    <span class="num">02</span>
+    <h2>The onboarding, step by step</h2>
+    <p>The domain is typed on the landing page. Everything after that happens inside one flow, and the state lives on an <code>Onboarding</code> row in the database, so the customer can close the tab and come back to the same place.</p>
+
+    <div class="steps">
+      <div class="step">
+        <h3>Create the account <span class="chip ok">working</span></h3>
+        <p>Email and password, or Google. Registration creates the user, the organization and the owner membership in one transaction. The analysis is already running in the background while they type.</p>
+        <span class="tech">POST /auth/register · /auth/oauth/google/start · POST /onboarding/start</span>
+      </div>
+      <div class="step">
+        <h3>Business analysis <span class="chip ok">working</span></h3>
+        <p>We read the homepage and up to nine common subpages, then ask the model for facts about the business with the page each fact came from, plus two or three buyer groups. Facts are editable in place. Groups can be switched on and off, and the target audience is the union of the ones left on. If the site cannot be read, three questions build the same thing.</p>
+        <span class="tech">POST /onboarding/analysis · POST /onboarding/answers</span>
+      </div>
+      <div class="step">
+        <h3>Free preview <span class="chip ok">working</span></h3>
+        <p>How many people match, how many have a verified email, a sample of real prospects, and the first emails we would send. No card yet, nothing sent.</p>
+        <span class="tech">GET /onboarding/market · POST /onboarding/preview</span>
+      </div>
+      <div class="step">
+        <h3>Daily volume <span class="chip ok">working</span></h3>
+        <p>They choose how many emails a day. From that we work out how many inboxes and domains are needed, using forty sends per warm inbox. The recommended pace is the one that leaves at least three months of new people in their market.</p>
+        <span class="tech">GET /billing/plans · Plan table: Launch, Growth, Scale</span>
+      </div>
+      <div class="step">
+        <h3>Sending domains <span class="chip part">partly working</span></h3>
+        <p>We generate lookalike domain ideas from their brand and check DNS to flag the ones already registered. They pick. Buying them still needs a registrar integration, so chosen domains are stored as pending registration and the screen says exactly that.</p>
+        <span class="tech">GET /onboarding/domains/ideas · PUT /onboarding/domains</span>
+      </div>
+      <div class="step">
+        <h3>Inboxes and warmup <span class="chip part">partly working</span></h3>
+        <p>Inboxes per domain, up to three sender names rotated across addresses, and the warmup timeline: fourteen days by default, first emails at ten to fifteen per inbox, full volume after the ramp. A faster start on pre-warmed inboxes is priced separately. Creating the actual Google or Microsoft inboxes needs a provider we have not integrated, so real sending currently uses mailboxes already connected in Smartlead.</p>
+        <span class="tech">Mailbox rows per domain · Settings → Sending attaches real Smartlead mailboxes</span>
+      </div>
+      <div class="step">
+        <h3>Payment <span class="chip ok">working</span></h3>
+        <p>Stripe subscription created as incomplete, card confirmed with Stripe's own payment element so no card data touches our servers. Subscription, payment and invoice rows are written from Stripe webhooks, never from the browser.</p>
+        <span class="tech">POST /billing/checkout · webhook → Subscription, Payment, Invoice</span>
+      </div>
+      <div class="step">
+        <h3>Campaign start <span class="chip ok">working</span></h3>
+        <p>The first campaign is built from the analysis and provisioned in Smartlead: campaign, sequence, schedule, settings, mailboxes, webhook, then start. If something is missing, such as a Smartlead key or an attached mailbox, the screen names the exact prerequisite instead of failing quietly. A CSV of the customer's own contacts can be imported here too.</p>
+        <span class="tech">POST /onboarding/launch</span>
+      </div>
+    </div>
+
+    <div class="note"><p><strong>Why this order.</strong> Everything free comes first. The customer sees their market, their prospects and their emails before they are asked for money, and everything that costs us real money happens only after the Stripe webhook confirms payment.</p></div>
+  </section>
+
+  <section id="analysis">
+    <span class="num">03</span>
+    <h2>Inside the business analysis</h2>
+    <p>This is the piece the whole product rests on. Apollo can only be searched with exact values: job titles, seniority levels, company sizes, countries, industry keywords. A business owner cannot produce those, and a form asking for them would empty the page. Their website, though, already contains the answer.</p>
+    <p><strong>So the analysis has one job: turn a website into a search a machine can run,</strong> accurately enough that the customer only has to confirm it.</p>
+
+    <div class="flow">
+      <div class="node"><b>1 · Fetch</b><span>homepage plus up to 9 subpages</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>2 · Extract</b><span>code finds country, currency, logos, testimonial titles</span></div>
+      <div class="arrow">→</div>
+      <div class="node accent"><b>3 · Model</b><span>facts with sources, plus buyer groups</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>4 · Repair</b><span>code fixes values into Apollo's format</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>5 · Size</b><span>free Apollo counts and samples</span></div>
+    </div>
+
+    <h3>What comes out of it</h3>
+    <p>Three buckets, and every field in them exists because something downstream reads it.</p>
+    <div class="scroll">
+      <table>
+        <tr><th>Bucket</th><th>What it holds</th><th>Who reads it</th></tr>
+        <tr><td><strong>Brand detail</strong></td><td>Company name, one-liner, what they sell, proof points, differentiators, countries, price level, named customers, job titles seen in testimonials, tone of voice, and a source link on every fact.</td><td>The overview screen and the email writer</td></tr>
+        <tr><td><strong>Buyer groups</strong></td><td>Two or three groups. Each has a human half (name, why they buy, pain points) and a search half (titles, seniorities, company sizes, countries, exclusions).</td><td>The screen, and Apollo</td></tr>
+        <tr><td><strong>Keywords</strong></td><td>Two to five words per group describing the kind of company to search: wholesale, ecommerce, pharmacy.</td><td>Apollo, to decide which companies</td></tr>
+      </table>
+    </div>
+
+    <h3>Two rules that keep it reliable</h3>
+    <ul>
+      <li><strong>The model drafts, the code decides.</strong> Nothing the model returns reaches Apollo unchecked. Seniorities and size ranges must come from fixed lists, country names are normalised, job titles are trimmed and de-duplicated, the customer's own domain is forced into the exclusion list, and any fact without a source is dropped.</li>
+      <li><strong>Unknown stays unknown.</strong> If the site does not say it, the field is empty and confidence drops. A low confidence run shows the three questions instead of a confident wrong answer.</li>
+    </ul>
+
+    <div class="note"><p><strong>Keywords decide the companies, titles decide the people.</strong> "Founder" exists in every industry, so without keywords a search returns founders of schools and restaurants. And because keywords are OR'd together, every extra keyword makes the audience wider, not narrower.</p></div>
+  </section>
+
+  <section id="apollo">
+    <span class="num">04</span>
+    <h2>How the data reaches Apollo</h2>
+    <p>Each buyer group's search half becomes one HTTP call. The field names in our analysis output were chosen to map one to one onto Apollo's parameters, which is why the schema looks the way it does.</p>
+
+    <div class="scroll">
+      <table>
+        <tr><th>Our field</th><th class="mono">Apollo parameter</th><th>Effect</th></tr>
+        <tr><td>titles</td><td class="mono">person_titles[]</td><td>which people</td></tr>
+        <tr><td>seniorities</td><td class="mono">person_seniorities[]</td><td>how senior</td></tr>
+        <tr><td>keywords</td><td class="mono">q_organization_keyword_tags[]</td><td>which companies</td></tr>
+        <tr><td>company_sizes</td><td class="mono">organization_num_employees_ranges[]</td><td>how big, as "11,50"</td></tr>
+        <tr><td>countries</td><td class="mono">organization_locations[]</td><td>where</td></tr>
+        <tr><td>exclude_domains</td><td class="mono">not_organization_websites_list[]</td><td>never themselves or a rival</td></tr>
+        <tr><td>email_status</td><td class="mono">contact_email_status[]</td><td>only people we can actually reach</td></tr>
+      </table>
+    </div>
+
+    <h3>The call, and why the preview is free</h3>
+    <p>Sizing uses Apollo's people search endpoint, <code>/api/v1/mixed_people/api_search</code>. It costs no credits and it returns no email addresses, only a masked last name and a flag saying an email exists. That is exactly why the free preview can be generous without leaking data or spending money.</p>
+    <div class="flow">
+      <div class="node"><b>Call 1</b><span>per_page=1 → total, e.g. 18,400</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>Call 2</b><span>+ verified only → reachable, e.g. 11,200</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>Call 3</b><span>25-person sample, masked</span></div>
+      <div class="arrow">→</div>
+      <div class="node accent"><b>Cache</b><span>keyed on the enabled groups, kept 24 hours</span></div>
+    </div>
+    <p>The cache key is a hash of the enabled groups and their filters, so editing a group re-sizes it, while switching back to a previous combination costs nothing. Paying for people happens later and separately, through Apollo's bulk enrichment, and only for leads a live campaign actually needs.</p>
+  </section>
+
+  <section id="engine">
+    <span class="num">05</span>
+    <h2>What runs after launch</h2>
+    <p>Once a campaign is live, the product becomes a set of scheduled jobs. Cloud Scheduler calls the API, the API runs the job, and Redis locks stop two runs overlapping.</p>
+
+    <div class="scroll">
+      <table>
+        <tr><th>Job</th><th>What it does</th><th>Status</th></tr>
+        <tr><td class="mono">sourcing</td><td>Apollo search, enrich the new people, drop duplicates and anyone on the blocklist, score them, put them into the week's batch, then hand the batch to a human for review and post a Slack notice.</td><td><span class="chip part">core loop ported</span></td></tr>
+        <tr><td class="mono">send</td><td>Sends today's approved emails through Smartlead, inside the daily caps.</td><td><span class="chip ok">working</span></td></tr>
+        <tr><td class="mono">reply-sync</td><td>Sweeps for replies and classifies them, and keeps follow-ups in order.</td><td><span class="chip part">webhooks are the source of truth</span></td></tr>
+        <tr><td class="mono">auto-reply</td><td>Drafts and sends an answer where the rules allow it, with a gate that hands anything sensitive to a human.</td><td><span class="chip ok">working</span></td></tr>
+        <tr><td class="mono">blocklist, reverify</td><td>Keeps the do-not-contact list current and re-checks aging email addresses.</td><td><span class="chip ok">working</span></td></tr>
+        <tr><td class="mono">billing-sync, report</td><td>Keeps Stripe state in step and sends the summary.</td><td><span class="chip ok">working</span></td></tr>
+      </table>
+    </div>
+
+    <p>What the customer sees on top of that is the cockpit (today's sends, what needs them, this week against last), the inbox with replies sorted by what they mean, the lead list with filters and CSV in and out, campaign controls, and one emergency stop that pauses everything at once.</p>
+  </section>
+
+  <section id="code">
+    <span class="num">06</span>
+    <h2>The code, and where everything lives</h2>
+    <p>One repository, two workspaces, about twenty-one thousand lines. The rule behind the layout is simple: the web app never talks to a database or a vendor, the API never renders anything, and anything slow runs as a job.</p>
+
+    <div class="scroll">
+      <table>
+        <tr><th>Folder</th><th>What is in it</th><th class="num-col">Size</th></tr>
+        <tr><td class="mono">apps/api</td><td>Express 5 API, Prisma schema, background jobs, integrations, tests</td><td class="num-col">126 files, ~10,700 lines</td></tr>
+        <tr><td class="mono">apps/web</td><td>Next.js app router, components, Redux store, tests</td><td class="num-col">62 files, ~10,800 lines</td></tr>
+        <tr><td class="mono">docs</td><td>Architecture, feature map, database schema, API map, design system, Stripe, deployment, migration plan</td><td class="num-col">10 documents</td></tr>
+        <tr><td class="mono">infra</td><td>Dockerfiles, docker-compose for local Postgres and Redis, Cloud Build, scheduler and secret scripts</td><td class="num-col">6 files</td></tr>
+        <tr><td class="mono">scripts</td><td>One-command local setup and dev runner</td><td class="num-col">2 files</td></tr>
+      </table>
+    </div>
+
+    <h3>How one request travels</h3>
+    <div class="flow">
+      <div class="node"><b>Page</b><span>apps/web/src/app</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>RTK Query</b><span>store/api.ts</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>Route</b><span>*.routes.ts, auth and rate limit</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>Controller</b><span>validates with zod, stays thin</span></div>
+      <div class="arrow">→</div>
+      <div class="node accent"><b>Service</b><span>all the business logic</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>Prisma</b><span>PostgreSQL, scoped to the org</span></div>
+    </div>
+
+    <h3>The API, module by module</h3>
+    <p>Every feature is one folder with the same three files: routes, controller, service. Nineteen of them.</p>
+    <div class="scroll">
+      <table>
+        <tr><th class="mono">Module</th><th>What it owns</th></tr>
+        <tr><td class="mono">auth</td><td>Register, sign in, refresh tokens, Google OAuth, email challenges, invitations</td></tr>
+        <tr><td class="mono">organizations</td><td>Workspaces, members, roles, invites</td></tr>
+        <tr><td class="mono">onboarding</td><td>The whole flow. Also holds the analysis prompt, the validator, the signal extractor and the domain idea generator</td></tr>
+        <tr><td class="mono">billing</td><td>Plans, Stripe checkout, subscriptions, the webhook handler</td></tr>
+        <tr><td class="mono">dashboard, engine</td><td>Cockpit figures, and the emergency stop and start</td></tr>
+        <tr><td class="mono">inbox, contacts, batches</td><td>Conversations and replies, the lead list and its imports and exports, the weekly review batches</td></tr>
+        <tr><td class="mono">campaigns, sending, sourcing</td><td>Campaign CRUD, mailboxes and Smartlead, the Apollo sourcing controls</td></tr>
+        <tr><td class="mono">blocklist, settings, system-logs</td><td>Do-not-contact list, organisation settings and credentials, the activity log</td></tr>
+        <tr><td class="mono">webhooks, jobs, admin, health</td><td>Inbound Stripe and Smartlead events, the job trigger endpoint, the platform admin area, liveness</td></tr>
+      </table>
+    </div>
+
+    <h3>The four supporting layers</h3>
+    <div class="scroll">
+      <table>
+        <tr><th class="mono">Folder</th><th>What it is for</th><th>Examples</th></tr>
+        <tr><td class="mono">domain/</td><td>Pure rules with no HTTP and no vendor. The shared brain of the product.</td><td>scoring, dedup, suppression, needsReply, sequence, personalize, provisioning, entitlements</td></tr>
+        <tr><td class="mono">integrations/</td><td>One file per outside service, each behind an interface so it can be swapped or faked in tests.</td><td>apollo, verifier, smartlead, ai, mailer, slack, site, credentials</td></tr>
+        <tr><td class="mono">jobs/</td><td>Everything slow or scheduled, run through a registry and protected by Redis locks.</td><td>sourcing, send, replySync, autoReplyDispatch, blocklist, reverify, billingSync, report</td></tr>
+        <tr><td class="mono">lib/ and middleware/</td><td>Plumbing that every module reuses.</td><td>prisma, redis, locks, logger, errors, csv, crypto, auth, rateLimit, validate, errorHandler</td></tr>
+      </table>
+    </div>
+
+    <h3>The database</h3>
+    <p>One Prisma schema, 781 lines, about thirty models. They group into five families:</p>
+    <ul>
+      <li><strong>Identity:</strong> User, EmailChallenge, OAuthAccount, RefreshToken, Organization, Membership.</li>
+      <li><strong>Money:</strong> Plan, Subscription, Payment, Refund, Invoice, WebhookEvent, UsageCounter.</li>
+      <li><strong>Setup:</strong> Onboarding, SendingDomain, Mailbox, OrgSettings, IntegrationCredential.</li>
+      <li><strong>Outreach:</strong> Campaign, Company, Contact, Message, WeeklyBatch, BlocklistEntry, AutoReplyQueue, AutoReplyDecision.</li>
+      <li><strong>Operations:</strong> SystemLog, and the status enums that keep states honest, such as a sending domain being pending registration.</li>
+    </ul>
+    <p>The onboarding state is not spread across tables. It is one <code>Onboarding</code> row per organisation holding the domain, the facts, the buyer groups, the cached market figures, the preview and the analysis errors.</p>
+
+    <h3>The web app</h3>
+    <div class="scroll">
+      <table>
+        <tr><th class="mono">Path</th><th>What is there</th></tr>
+        <tr><td class="mono">app/page.tsx</td><td>The landing page with the domain search</td></tr>
+        <tr><td class="mono">app/onboarding</td><td>The eight-step flow</td></tr>
+        <tr><td class="mono">app/app/*</td><td>The customer app: cockpit, inbox, leads, campaigns, blocklist, billing, settings, system</td></tr>
+        <tr><td class="mono">app/admin/*</td><td>Platform admin: organisations, users, subscriptions, payments, webhooks, logs</td></tr>
+        <tr><td class="mono">components/onboarding</td><td>AnalysisStep, PreviewStep, SetupSteps, Payment, LaunchStep, and the sizing maths</td></tr>
+        <tr><td class="mono">components/ui, shell</td><td>The primitives, overlays and icons, plus the app and admin shells</td></tr>
+        <tr><td class="mono">store/api.ts</td><td>Every API call in one RTK Query file, with caching and polling</td></tr>
+      </table>
+    </div>
+    <p>The sizing rules live in <code>components/onboarding/sizing.ts</code> on the web side and in <code>config/plans.ts</code> on the API side, so a change to sends-per-inbox touches two files and a test.</p>
+
+    <h3>Tests</h3>
+    <p>Nineteen API test files and eleven on the web. The two worth knowing about are <code>tenant-isolation.test.ts</code>, which proves one organisation cannot read another's rows, and <code>onboarding.test.ts</code> plus <code>analysis.test.ts</code>, which pin the analysis output and the repair rules so a prompt change cannot quietly break the Apollo search.</p>
+
+    <div class="note"><p><strong>Five conventions to follow when adding anything.</strong> Controllers validate and delegate, never contain logic. Every query is scoped to the organisation. Vendors are only reached through the integrations folder. Anything that takes more than a second becomes a job. Secrets come from the environment and Secret Manager, never from code.</p></div>
+  </section>
+
+  <section id="status">
+    <span class="num">07</span>
+    <h2>What works, and what does not yet</h2>
+    <p>This is the honest version, taken from the feature map and the migration plan in the repository, not from what the screens imply.</p>
+
+    <h3>Working end to end</h3>
+    <ul>
+      <li>Registration, sign in, Google sign-in, teams and roles, invitations.</li>
+      <li>The analysis, including the fallback when a site cannot be read, and the editable facts and groups.</li>
+      <li>Market sizing and sample prospects from Apollo, the sample email sequence, the plan recommendation.</li>
+      <li>Stripe checkout, subscriptions, invoices, the customer billing page.</li>
+      <li>Campaign creation and provisioning in Smartlead, the cockpit, the inbox, leads, blocklist, settings, the admin area.</li>
+    </ul>
+
+    <h3>Partly working</h3>
+    <div class="scroll">
+      <table>
+        <tr><th>Piece</th><th>What is missing</th><th>What the app does today</th></tr>
+        <tr><td>Sending domains</td><td>No registrar integration, so nothing is actually bought</td><td>Ideas are generated and checked against DNS, the customer chooses and pays, and the domain sits as pending registration</td></tr>
+        <tr><td>Inboxes</td><td>No provider that creates Google or Microsoft mailboxes</td><td>Planned inboxes are stored as planned, and real sending uses mailboxes already connected in Smartlead</td></tr>
+        <tr><td>Sourcing job</td><td>Some heuristics from the source app were specific to one customer and were left out</td><td>The main loop runs: search, enrich, dedupe, score, batch</td></tr>
+      </table>
+    </div>
+
+    <h3>The three things that block the promise</h3>
+    <ol>
+      <li><strong>Buy the domain.</strong> Until a registrar API is wired in, "we buy your domains" is not true. This is one integration file.</li>
+      <li><strong>Create the inbox.</strong> Same shape of problem. A mailbox vendor closes it, and pre-warmed mailboxes would also remove the two week wait.</li>
+      <li><strong>Price the inbox above cost.</strong> Mailboxes cost roughly four and a half dollars a month from a vendor. Selling them at four loses money on every one.</li>
+    </ol>
+
+    <div class="note"><p><strong>One more to settle before launch.</strong> Apollo's API terms license the data for internal business purposes and say you may not sell or sublicense access to a third party. Our model shows Apollo data to our customers, so it needs written clarification from Apollo. The code already keeps every provider behind an interface, so swapping the data source is a contained change rather than a rewrite.</p></div>
+  </section>
+
+  <section id="vs">
+    <span class="num">08</span>
+    <h2>How this differs from AutoGTM</h2>
+    <p>AutoGTM, by Explee, is the closest thing to this product on the market. Both start from a website address. The difference is who owns the sending.</p>
+
+    <div class="scroll">
+      <table>
+        <tr><th></th><th>AutoGTM</th><th>Aperture</th></tr>
+        <tr><td>Who sends</td><td>Their own pool of pre-warmed inboxes</td><td>The customer's own new domains and inboxes</td></tr>
+        <tr><td>Time to first email</td><td>Minutes</td><td>Two weeks of warmup, or days on pre-warmed inboxes</td></tr>
+        <tr><td>Who owns the domains</td><td>They do</td><td>The customer keeps them</td></tr>
+        <tr><td>Where replies land</td><td>Inside their platform</td><td>The customer's own inbox and ours</td></tr>
+        <tr><td>Data</td><td>Their own database with semantic search</td><td>Apollo filters plus MillionVerifier</td></tr>
+        <tr><td>Free preview</td><td>Full names and real email addresses</td><td>Masked names, no addresses before payment</td></tr>
+        <tr><td>Price</td><td>Three cents per email sent, no subscription</td><td>Plan plus inboxes and domains, monthly</td></tr>
+        <tr><td>To start</td><td>Thirty dollars in credits, card not charged</td><td>A few hundred dollars up front</td></tr>
+      </table>
+    </div>
+
+    <p><strong>Where they are stronger:</strong> starting today, and a very small first commitment. <strong>Where we are stronger:</strong> the customer sends from their own brand, keeps the domains as an asset, and never shares deliverability with strangers. The obvious move is to offer both, an instant start on pre-warmed inboxes and the owned setup, rather than pretending the two week wait is a feature.</p>
+    <p>Their presentation is worth copying even though their architecture is not: six named stages ticking off one by one, each finished stage docking into the left rail, and a live log of what the agent is doing. Same work, and it feels like research instead of a loading screen.</p>
+  </section>
+
+  <section id="money">
+    <span class="num">09</span>
+    <h2>Where the money goes</h2>
+    <div class="scroll">
+      <table>
+        <tr><th>Stage</th><th>What it costs us</th><th>When</th></tr>
+        <tr><td>Reading the site and the analysis</td><td>A few cents of model usage</td><td>Before payment</td></tr>
+        <tr><td>Market sizing and samples</td><td>Nothing. Apollo's people search costs no credits</td><td>Before payment</td></tr>
+        <tr><td>Sample emails</td><td>About a cent</td><td>Before payment</td></tr>
+        <tr><td>Domains</td><td>Roughly thirteen dollars a year each</td><td>After payment</td></tr>
+        <tr><td>Inboxes</td><td>Roughly four and a half dollars a month each</td><td>After payment</td></tr>
+        <tr><td>Finding each lead's email</td><td>About one Apollo credit per person</td><td>While a campaign runs</td></tr>
+        <tr><td>Checking each address</td><td>Fractions of a cent</td><td>While a campaign runs</td></tr>
+      </table>
+    </div>
+    <p>The shape to remember: <strong>the free preview costs cents, and everything expensive happens after the Stripe webhook.</strong> Leads are pulled a few days at a time rather than all at once, so a cancellation costs almost nothing.</p>
+  </section>
+
+  <section id="qa">
+    <span class="num">10</span>
+    <h2>Questions people ask</h2>
+
+    <details><summary>Why not just ask the customer who their buyers are?</summary>
+      <p>Most cannot answer it in the form Apollo needs, and a long form at signup loses most of the people who started. Their website already contains the answer, so we read it and ask them to confirm instead.</p></details>
+
+    <details><summary>What if the model invents the audience?</summary>
+      <p>Four guards. Every fact carries the page it came from and unsourced facts are dropped. Seniorities and company sizes must come from fixed lists. The customer edits the groups before anything runs. And a wrong audience shows up immediately as a strange number in the free count.</p></details>
+
+    <details><summary>Why is the preview free if Apollo costs money?</summary>
+      <p>Because the search endpoint we use for sizing costs zero credits and returns no email addresses. We only pay for people once a paying campaign needs to contact them.</p></details>
+
+    <details><summary>Why can't the campaign start the same day?</summary>
+      <p>Brand new mailboxes have no sending reputation. Sending at full volume from them lands in spam and can poison the domain. Fourteen days of warmup is the standard advice, and pre-warmed inboxes are the way to skip it.</p></details>
+
+    <details><summary>Why separate domains instead of the customer's real one?</summary>
+      <p>Cold email carries reputation risk. If a campaign trips a spam filter, that should happen on a spare domain, not on the one their invoices and customer emails depend on. The spare domains forward visitors to the real site.</p></details>
+
+    <details><summary>What stops us emailing the same person twice, or someone who said no?</summary>
+      <p>A unique index on organization plus email, a suppression list that every batch is checked against, and per-company caps. Unsubscribes and bounces go straight onto that list.</p></details>
+
+    <details><summary>Why are the long jobs not just API calls?</summary>
+      <p>The analysis takes up to a minute and provisioning takes hours. Request timeouts make that fragile, so anything slow runs as a job with locks and retries, and the screen follows progress separately.</p></details>
+
+    <details><summary>What happens if a customer's site is blocked or empty?</summary>
+      <p>Fallbacks in order: plain fetch, then a rendered fetch, then web search, then three questions. The confidence score decides when to stop trusting the site and ask.</p></details>
+
+    <details><summary>Can we swap Apollo for something else?</summary>
+      <p>Yes. Every provider sits behind an interface in the integrations folder, so a replacement is a new file, not a rewrite. That matters because of the open terms question.</p></details>
+
+    <details><summary>What would I build next, in order?</summary>
+      <p>Registrar integration, then an inbox provider with pre-warmed mailboxes, then the inbox price fix, then the live progress stream so the onboarding shows its work.</p></details>
+  </section>
+
+  <section id="glossary">
+    <span class="num">11</span>
+    <h2>Words you will hear</h2>
+    <div class="scroll">
+      <table>
+        <tr><th>Word</th><th>What it means here</th></tr>
+        <tr><td>ICP</td><td>Ideal customer profile. The description of the companies worth emailing.</td></tr>
+        <tr><td>Buyer group</td><td>One audience inside that profile, with its own emails. We run two or three.</td></tr>
+        <tr><td>Warmup</td><td>Sending small, friendly volumes from a new mailbox for two weeks so providers learn to trust it.</td></tr>
+        <tr><td>SPF, DKIM, DMARC</td><td>DNS records that prove an email really came from that domain. Missing them means the spam folder.</td></tr>
+        <tr><td>Catch-all</td><td>A domain that accepts mail for any address, so verification cannot confirm the person exists.</td></tr>
+        <tr><td>Enrichment</td><td>Turning a person we found into a contactable person, meaning their email address. This is the part that costs credits.</td></tr>
+        <tr><td>Suppression list</td><td>People we must never contact again.</td></tr>
+        <tr><td>Sequence</td><td>The first email plus its follow-ups, which stop the moment someone replies.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+  <footer>
+    <p>Written from the Aperture repository: the onboarding module, the Apollo and Smartlead integrations, the job registry, the feature map and the migration plan. Where something is marked partial or missing, that is what the code says, not a guess.</p>
+  </footer>
+</div>
