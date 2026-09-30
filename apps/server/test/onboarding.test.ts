@@ -42,24 +42,39 @@ describe("onboarding", () => {
     expect(o.icp.titles).toEqual(["Operations manager"]);
   });
 
-  it("stores facts with their source page, buyer groups and a brand profile", async () => {
+  it("stores facts with their real source page, buyer groups and a brand profile, and drops what the site doesn't say", async () => {
     const t = await createTenant({ subscribed: false });
     await api().post("/api/v1/onboarding/start").set(t.auth).send({ domain: "northwind.io" });
-    setSiteReader(async () => ({ home: { title: "Northwind | Invoicing", description: null }, pages: [{ path: "/", title: "Northwind", text: "Invoicing for agencies" }, { path: "/services", title: "Services", text: "We send invoices" }] }));
+    setSiteReader(async () => ({
+      home: { title: "Northwind | Invoicing", description: null },
+      pages: [
+        { path: "/", title: "Northwind", text: "Invoicing software for marketing agencies." },
+        { path: "/services", title: "Services", text: "We send invoices and payment reminders. Used by 200 agencies." },
+      ],
+    }));
     setAiClient(
       fakeAi({
         brand_detail: {
           company_name: "Northwind",
           one_liner: "Invoicing software for marketing agencies",
-          offerings: ["Invoicing", "Payment reminders"],
+          offerings: ["Invoicing", "Payment reminders", "Payroll"],
           business_model: "B2B",
           customer_types: ["Marketing agencies"],
           geographies: ["United Kingdom"],
-          proof: [{ text: "Used by 200 agencies", source: "https://northwind.io/services" }],
+          proof: [
+            { text: "Used by 200 agencies", source: "https://northwind.io/services" },
+            { text: "Trusted by 5,000 firms", source: "/services" },
+            { text: "Rated 4.9 on G2", source: "/reviews" },
+          ],
           differentiators: [],
+          named_customers: ["Brightlabs"],
+          competitors: ["rival.com"],
           language: "en",
           confidence: 0.8,
-          evidence: [{ claim: "Sells invoicing", source: "/services" }],
+          evidence: [
+            { claim: "Invoicing software for marketing agencies", source: "/" },
+            { claim: "Sends payment reminders", source: "/services" },
+          ],
         },
         warning: null,
         target_audience: [
@@ -70,10 +85,25 @@ describe("onboarding", () => {
     );
     const res = await api().post("/api/v1/onboarding/analysis").set(t.auth).expect(200);
     const o = res.body.data.onboarding;
-    expect(o.facts.map((f: { key: string; source: string }) => [f.key, f.source])).toEqual([["company", "from your site"], ["sell", "/services"], ["who", "/services"], ["where", "/services"], ["proof", "/services"]]);
+    // Sources point at the page that says it; what no page says is labelled as a summary of the site.
+    expect(o.facts.map((f: { key: string; source: string }) => [f.key, f.source])).toEqual([["company", "from your site"], ["sell", "/"], ["who", "/"], ["where", "from your site"], ["proof", "/services"]]);
+    const bd = o.analysis.brandDetail;
+    expect(bd.proof).toEqual([{ text: "Used by 200 agencies", source: "/services" }]);
+    expect(bd.offerings).toEqual(["Invoicing", "Payment reminders"]);
+    expect(bd.named_customers).toEqual([]);
+    expect(bd.competitors).toEqual([]);
+    expect(o.groups[0].excludeDomains).toEqual(expect.arrayContaining(["northwind.io", "rival.com"]));
+    expect(o.analysis.repairsMade).toEqual(
+      expect.arrayContaining([
+        'grounding.proof: dropped "Trusted by 5,000 firms" (not supported by /services)',
+        'grounding.proof: dropped "Rated 4.9 on G2" (source /reviews was not read)',
+        'grounding.offerings: removed "Payroll" (not in the site\'s words)',
+        'grounding.named_customers: removed "Brightlabs" (not on the site)',
+      ]),
+    );
     expect(o.groups).toHaveLength(1);
     expect(o.icp).toEqual({ industries: ["marketing agency"], titles: ["Founder", "Managing Director", "Finance Manager"], sizes: ["11,50"], regions: ["United Kingdom"] });
-    expect(o.analysis).toMatchObject({ promptVersion: "analysis-prompt-v1", confidence: 0.8, lowConfidence: false });
+    expect(o.analysis).toMatchObject({ promptVersion: "analysis-prompt-v2", confidence: 0.8, lowConfidence: false });
     expect(o.analysis.repairsMade).toEqual(expect.arrayContaining(['target_audience[0].company_sizes: dropped "bogus" (not in allowed list)', "target_audience[1]: dropped (no name)"]));
     const s = await prisma.orgSettings.findUniqueOrThrow({ where: { organizationId: t.orgId } });
     expect(s.valueProp).toBe("Invoicing software for marketing agencies");

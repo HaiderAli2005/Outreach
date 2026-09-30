@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { AnalysisStep, sizeLabel } from "@/components/onboarding/AnalysisStep";
+import { AnalysisStep, sizeLabel, sizeRange } from "@/components/onboarding/AnalysisStep";
 import type { BuyerGroup } from "@/lib/types";
 import { json, onboardingState } from "./fixtures";
 import { renderWithStore } from "./render";
@@ -78,16 +78,18 @@ describe("analysis step", () => {
     });
     renderWithStore(<AnalysisStep state={state} market={undefined} setNextDisabled={vi.fn()} />);
     expect(screen.getByRole("note")).toHaveTextContent("Sells mostly to consumers");
-    expect(screen.getByText("Confidence 82%")).toBeInTheDocument();
-    expect(screen.getByText("Automatic reminders").closest(".fact")).toHaveTextContent("found on northwind.io/services");
+    // Sources read as a page on their own site, without the model's confidence score.
+    expect(screen.queryByText(/Confidence/)).not.toBeInTheDocument();
+    expect(screen.getByText("Automatic reminders").closest(".fact")).toHaveTextContent("found on /services");
     expect(screen.getByText("Brightlabs")).toBeInTheDocument();
     const cards = screen.getAllByRole("article");
-    expect(within(cards[0]).getByRole("heading")).toHaveTextContent("UK agencies");
+    expect(within(cards[0]).getByRole("heading", { level: 3 })).toHaveTextContent("UK agencies");
     expect(cards[0]).toHaveTextContent("Run first");
     expect(cards[1]).toHaveTextContent("Priority 2");
     expect(cards[0]).toHaveTextContent("Founder, C-suite");
-    expect(cards[0]).toHaveTextContent("11 to 50 employees, 5,001+ employees");
-    expect(cards[0]).toHaveTextContent("Why they buy. They chase late invoices");
+    // Size bands read as one line; touching bands merge.
+    expect(cards[0]).toHaveTextContent("11 to 50, 5,001+ employees");
+    expect(within(cards[0]).getByRole("heading", { name: "Why they buy" }).nextElementSibling).toHaveTextContent("They chase late invoices");
   });
 
   const analysed = (groups: BuyerGroup[]) => {
@@ -116,7 +118,9 @@ describe("analysis step", () => {
     expect(await within(card).findByText("12.4K")).toBeInTheDocument();
     expect(within(card).getByText("pr firm").closest(".kw")).toHaveClass("none");
     expect(within(card).getByText("media").closest(".kw")).toHaveClass("broad");
-    expect(card).toHaveTextContent('"pr firm" matches no companies here. "media" barely narrows the search.');
+    expect(card).toHaveTextContent('"pr firm" matches no companies here.');
+    // A broad keyword is a quiet note, not a warning: it still finds the right people.
+    expect(card).toHaveTextContent('"media" fits most of this audience already');
     expect(card).toHaveTextContent("Adding a keyword makes this audience bigger.");
     expect(within(card).getByText("marketing agency").closest("details")).toBeNull();
     await userEvent.click(within(card).getByRole("button", { name: "Add design studio" }));
@@ -159,6 +163,12 @@ describe("analysis step", () => {
     expect(screen.getByText("Question 3 of 3")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "United Arab Emirates" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Build my audience/ })).toBeInTheDocument();
+  });
+
+  it("merges touching company size bands", () => {
+    expect(sizeRange(["51,200", "11,50", "201,500", "501,1000", "1001,5000"])).toBe("11 to 5,000 employees");
+    expect(sizeRange(["1,10", "51,200"])).toBe("1 to 10, 51 to 200 employees");
+    expect(sizeRange(["1001,5000", "5001,"])).toBe("1,001+ employees");
   });
 
   it("labels company sizes", () => {

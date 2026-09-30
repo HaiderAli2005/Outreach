@@ -17,9 +17,24 @@ export function optOutLine(s: Pick<OrgSettings, "optOutLine" | "language">): str
     : "If this isn't relevant, just say so and I won't reach out again.";
 }
 
+const RTL_CHARS = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/g;
+const LTR_CHARS = /[A-Za-z\u00C0-\u024F\u0400-\u04FF]/g;
+
+/** True when most letters in the text are from a right-to-left script (Arabic, Urdu, Persian, Hebrew). */
+export function isRtlText(text: string | null | undefined): boolean {
+  if (!text) return false;
+  // Merge tokens like {{first_name}} are Latin but say nothing about the language of the email.
+  const clean = text.replace(/\{\{[^}]*\}\}/g, "");
+  const rtl = clean.match(RTL_CHARS)?.length ?? 0;
+  const ltr = clean.match(LTR_CHARS)?.length ?? 0;
+  return rtl > 0 && rtl >= ltr;
+}
+
+/** Plain text to email HTML. Right-to-left text is wrapped so mail apps show it right to left. */
 export function htmlize(text: string | null | undefined): string {
   if (!text) return "";
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\r?\n/g, "<br/>");
+  const html = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\r?\n/g, "<br/>");
+  return isRtlText(text) ? `<div dir="rtl" style="direction:rtl;text-align:right">${html}</div>` : html;
 }
 
 export function buildSequence(signature: string, delayFollowup2 = 4, delayFollowup3 = 6) {

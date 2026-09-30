@@ -47,11 +47,13 @@ function Bars({ title, data }: { title: string; data: [string, number][] }) {
 
 const sizeBand = (n: number | null) => (n == null ? "" : n <= 10 ? "1 to 10 staff" : n <= 50 ? "11 to 50 staff" : n <= 200 ? "51 to 200 staff" : n <= 1000 ? "201 to 1,000 staff" : "1,000+ staff");
 
-export function MarketTabs({ market, people, audience }: { market: MarketView; people: number | null; audience: string | null }) {
-  const [tab, setTab] = useState<"companies" | "people">("companies");
+export function MarketTabs({ market, people, audience, initialTab = "companies" }: { market: MarketView; people: number | null; audience: string | null; initialTab?: "companies" | "people" }) {
+  const [tab, setTab] = useState<"companies" | "people">(initialTab);
   const companies = (market.companies ?? []).filter((c) => !audience || c.audienceId === audience);
   const prospects = market.prospects.filter((p) => !audience || !p.audienceId || p.audienceId === audience);
   const hasCountry = prospects.some((p) => p.country);
+  // The free people search often returns only a company's name. Then the table shows who matches there instead of empty columns.
+  const rich = companies.some((c) => c.domain || c.country || c.employees);
   const pick = (t: "companies" | "people") => () => setTab(t);
   return (
     <div className="mk-tabs">
@@ -68,19 +70,44 @@ export function MarketTabs({ market, people, audience }: { market: MarketView; p
           companies.length ? (
             <>
               <p className="fine mk-note">Examples from a sample of {market.sample.size} matching people, not a count of every company in your market.</p>
-              <ul className="co-list">
+              <ul className={`co-list${rich ? "" : " lean"}`}>
+                <li className="co-row co-head" aria-hidden="true">
+                  <span />
+                  <span>Company</span>
+                  {rich ? (
+                    <>
+                      <span>Website</span>
+                      <span>Country</span>
+                      <span>Size</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Who matches there</span>
+                      <span>People</span>
+                    </>
+                  )}
+                </li>
                 {companies.slice(0, 24).map((c) => (
                   <li key={`${c.audienceId}-${c.domain ?? c.name}`} className="co-row">
                     <span className="co-av" aria-hidden="true">
                       {c.name.charAt(0)}
                     </span>
                     <div className="co-main">
-                      <b>{c.name}</b>
+                      <b dir="auto">{c.name}</b>
                       {c.description ? <small>{c.description}</small> : null}
                     </div>
-                    <span className="co-dom">{c.domain ?? ""}</span>
-                    <span className="co-meta">{c.country ?? ""}</span>
-                    <span className="co-meta">{sizeBand(c.employees)}</span>
+                    {rich ? (
+                      <>
+                        <span className="co-dom">{c.domain ?? ""}</span>
+                        <span className="co-meta">{c.country ?? ""}</span>
+                        <span className="co-meta">{sizeBand(c.employees)}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="co-meta co-titles">{(c.titles ?? []).join(", ")}</span>
+                        <span className="co-meta co-n">{c.people ?? 1}</span>
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -113,8 +140,12 @@ export function MarketTabs({ market, people, audience }: { market: MarketView; p
                           {r.firstName} {r.lastInitial}***
                         </b>
                       </td>
-                      <td data-l="Title">{r.title}</td>
-                      <td data-l="Company">{r.company}</td>
+                      <td data-l="Title" dir="auto">
+                        {r.title}
+                      </td>
+                      <td data-l="Company" dir="auto">
+                        {r.company}
+                      </td>
                       {hasCountry ? <td data-l="Country">{r.country}</td> : null}
                       <td data-l="Email">
                         {r.hasEmail ? (
@@ -222,7 +253,12 @@ export function SequencePanel({ state, senders, firstDomain }: { state: Onboardi
   );
 }
 
+/** Which part of the overview is open: everything, or just the part a rail card points at. */
+export type PreviewFocus = "all" | "market" | "prospects" | "audiences";
+
 export function PreviewStep({
+  focus = "all",
+  onShowAll = () => undefined,
   state,
   cat,
   market,
@@ -245,6 +281,8 @@ export function PreviewStep({
   /** Audience picked in the rail. The audiences, companies and people below show only that one. */
   audience?: string | null;
   onAudience?: (id: string | null) => void;
+  focus?: PreviewFocus;
+  onShowAll?: () => void;
 }) {
   const o = state.onboarding!;
   const onGroups = o.groups.filter((g) => g.on);
@@ -277,6 +315,8 @@ export function PreviewStep({
   const rec = recommendedVolume(pool);
   const count = (id: string) => market?.groups.find((x) => x.id === id)?.count;
   const busy = updateState.isLoading || keywordState.isLoading;
+  const prospectCount = (market?.prospects ?? []).filter((x) => !audience || !x.audienceId || x.audienceId === audience).length;
+  const show = { audiences: focus === "all" || focus === "audiences", market: focus === "all" || focus === "market", tabs: focus === "all" || focus === "prospects", plan: focus === "all" || focus === "market" };
 
   return (
     <>
@@ -285,18 +325,47 @@ export function PreviewStep({
           <Icon id="shield" />
           Free overview · nothing is sent until you launch
         </span>
-        <h1 className="an-h">
-          {people != null ? (
-            <>
-              <Counter value={people} /> people match <span className="grad">{o.brand}</span>&apos;s buyers
-            </>
-          ) : (
-            <>
-              Your overview for <span className="grad">{o.brand}</span>
-            </>
-          )}
-        </h1>
-        <p className="an-p">Tune your audiences, check your market, and pick a sending pace that fits.</p>
+        {focus === "prospects" ? (
+          <>
+            <h1 className="an-h">
+              {prospectCount} sample prospect{prospectCount === 1 ? "" : "s"} for <span className="grad">{o.brand}</span>
+            </h1>
+            <p className="an-p">Real people from your market, taken from the audiences you kept on, with the companies they work at. Surnames stay shortened until you launch.</p>
+          </>
+        ) : focus === "audiences" ? (
+          <>
+            <h1 className="an-h">
+              Your audiences: {onGroups.length} on{o.groups.length - onGroups.length ? `, ${o.groups.length - onGroups.length} off` : ""}
+            </h1>
+            <p className="an-p">Only the audiences you keep on get emails. Switch one off or change its keywords, and only its count updates.</p>
+          </>
+        ) : (
+          <>
+            <h1 className="an-h">
+              {people != null ? (
+                <>
+                  <Counter value={people} /> people match <span className="grad">{o.brand}</span>&apos;s buyers
+                </>
+              ) : (
+                <>
+                  Your {focus === "market" ? "market" : "overview"} for <span className="grad">{o.brand}</span>
+                </>
+              )}
+            </h1>
+            <p className="an-p">
+              {focus === "market"
+                ? "How many people match, how many have a verified work email, where they are, and how long your market lasts at each sending pace."
+                : "Tune your audiences, check your market, and pick a sending pace that fits."}
+            </p>
+          </>
+        )}
+        {focus !== "all" ? (
+          <div className="pv-all">
+            <Button size="sm" icon="list" onClick={onShowAll}>
+              See the full overview
+            </Button>
+          </div>
+        ) : null}
         {audience && o.groups.some((g) => g.id === audience) ? (
           <p className="aud-filter">
             Showing <b>{o.groups.find((g) => g.id === audience)!.name}</b>
@@ -313,6 +382,7 @@ export function PreviewStep({
         </div>
       ) : null}
 
+      {show.audiences ? (
       <section className="pv-aud">
         <div className="bg-head">
           <h2>Your audiences</h2>
@@ -331,6 +401,7 @@ export function PreviewStep({
                 busy={busy}
                 onKeywords={saveKeywords}
                 onToggle={() => update({ groups: [{ id: g.id, on: !g.on }] }).catch(() => undefined)}
+                examples={g.on ? (market?.prospects ?? []).filter((x) => x.audienceId === g.id) : []}
               />
             ))}
         </div>
@@ -343,7 +414,25 @@ export function PreviewStep({
           </div>
         ) : null}
       </section>
+      ) : null}
 
+      {focus === "prospects" ? (
+        <section className="pv-card mk">
+          <div className="pv-h">
+            <div>
+              <h2>Sample prospects</h2>
+              <p>People and companies in your market. Pick one audience in the left panel to see only its people.</p>
+            </div>
+          </div>
+          {market?.available ? (
+            <MarketTabs market={market} people={people} audience={audience} initialTab="people" />
+          ) : (
+            <p className="fine">{marketLoading ? "Loading your sample…" : "The lead search isn't connected yet, so there are no sample prospects to show."}</p>
+          )}
+        </section>
+      ) : null}
+
+      {show.market ? (
       <section className="pv-card mk">
         <div className="pv-h">
           <div>
@@ -403,7 +492,7 @@ export function PreviewStep({
                 </>
               );
             })()}
-            <MarketTabs market={market} people={people} audience={audience} />
+            {show.tabs ? <MarketTabs market={market} people={people} audience={audience} /> : null}
           </>
         ) : (
           <div className="notice glass info" role="note">
@@ -421,7 +510,9 @@ export function PreviewStep({
           </div>
         )}
       </section>
+      ) : null}
 
+      {show.plan ? (
       <section className="pv-card">
         <div className="pv-h">
           <div>
@@ -467,6 +558,7 @@ export function PreviewStep({
         </div>
         <p className="rp-note">We recommend the fastest pace that still leaves at least 3 months of new people, so there&apos;s time to improve your emails as replies come in.</p>
       </section>
+      ) : null}
     </>
   );
 }

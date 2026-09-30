@@ -104,7 +104,9 @@ function Thread({ id, onBack, onGone }: { id: string; onBack: () => void; onGone
               </span>
               <span>{dateTime(m.createdAt)}</span>
             </div>
-            <div className="body">{m.body}</div>
+            <div className="body" dir="auto">
+              {m.body}
+            </div>
             {m.attachments.length ? (
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
                 {m.attachments.map((a) => (
@@ -126,8 +128,12 @@ function Thread({ id, onBack, onGone }: { id: string; onBack: () => void; onGone
         <label className="sr" htmlFor="replyBody">
           Reply
         </label>
-        <textarea id="replyBody" className="input" rows={7} style={{ marginTop: 12 }} value={body} onChange={(e) => setBody(e.target.value)} maxLength={10000} placeholder="Write your reply" />
-        {data.email.signature ? <div className="code" style={{ marginTop: 10 }}>{data.email.signature}</div> : null}
+        <textarea id="replyBody" dir="auto" className="input" rows={7} style={{ marginTop: 12 }} value={body} onChange={(e) => setBody(e.target.value)} maxLength={10000} placeholder="Write your reply" />
+        {data.email.signature ? (
+          <div className="code" dir="auto" style={{ marginTop: 10 }}>
+            {data.email.signature}
+          </div>
+        ) : null}
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
           <Button variant="primary" icon="plane" loading={replyState.isLoading} disabled={!body.trim()} onClick={send}>
             Send reply
@@ -243,7 +249,7 @@ function Inbox() {
                       <b>{r.fullName ?? r.email}</b>
                       {r.company ? <span className="co">{r.company}</span> : null}
                     </div>
-                    <p>
+                    <p dir="auto">
                       {r.lastMessageDirection === "OUTBOUND" ? "You: " : ""}
                       {r.lastMessagePreview}
                     </p>

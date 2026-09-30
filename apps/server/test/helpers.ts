@@ -141,4 +141,13 @@ export class FakeSmartlead implements SmartleadApi {
   async messageHistory() { return [{ type: "SENT", email_stats_id: "stats-1" }, { type: "REPLY", message_id: "msg-1", time: new Date().toISOString(), email_body: "hi" }]; }
   async replyToThread(id: string, args: unknown) { this.log("replyToThread", id, args); }
   async registerWebhook(id: string, url: string) { this.log("registerWebhook", id, url); }
+  accounts = new Map<string, number>();
+  async saveSmtpAccount(a: { fromEmail: string }, id?: number) {
+    this.log("saveSmtpAccount", a, id);
+    const got = id ?? this.accounts.get(a.fromEmail) ?? 100 + this.accounts.size;
+    this.accounts.set(a.fromEmail, got);
+    return { id: got, smtpOk: true, imapOk: true };
+  }
+  async findAccountByEmail(email: string) { return this.accounts.get(email) ?? null; }
+  async setAccountDailyLimit(id: number, n: number) { this.log("setAccountDailyLimit", id, n); }
 }

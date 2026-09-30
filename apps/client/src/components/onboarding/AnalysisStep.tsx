@@ -7,6 +7,7 @@ import { errorCode, errorMessage, useOnboardingAnalyzeMutation, useOnboardingAns
 import type { AnalysisSummary, BuyerGroup, Fact, MarketView, OnboardingState } from "@/lib/types";
 import { compact, n0 } from "@/lib/format";
 import { Counter } from "./live/motion";
+import { audienceIcon } from "./live/cards";
 
 const COUNTRIES = ["United Kingdom", "United States", "Ireland", "Germany", "Netherlands", "France", "United Arab Emirates", "Canada", "Australia"];
 
@@ -33,12 +34,13 @@ export function sizeLabel(s: string): string {
 
 const ordinal = (n: number) => (n === 1 ? "Run first" : `Priority ${n}`);
 
+/** Where a fact came from, as a place on the site: "your homepage", "/pricing". */
 function sourceLabel(src: string) {
-  if (src.startsWith("/")) return <>found on <code>{src}</code></>;
+  const page = (path: string) => (path === "/" || path === "" ? <>found on your homepage</> : <>found on <code>{path.replace(/\/$/, "")}</code></>);
+  if (src.startsWith("/")) return page(src);
   if (src.startsWith("from")) return src;
   try {
-    const u = new URL(src);
-    return <>found on <code>{u.hostname}{u.pathname === "/" ? "" : u.pathname}</code></>;
+    return page(new URL(src).pathname);
   } catch {
     return `found in ${src}`;
   }
@@ -280,6 +282,7 @@ export function FactsSheet({ facts, company, onCommit }: { facts: Fact[]; compan
         const common = {
           className: "fact-in",
           id: `fact-${f.key}`,
+          dir: "auto",
           value: vals[f.key] ?? "",
           maxLength: 400,
           onBlur: () => (vals[f.key] ?? "").trim() !== f.value && onCommit(f.key, vals[f.key] ?? ""),
@@ -354,7 +357,7 @@ function Keywords({ g, onSave, busy }: { g: BuyerGroup; onSave: SaveKeywords; bu
           return (
             <span key={k} className={`kw${state === "none" ? " none" : ""}${state === "broad" ? " broad" : ""}`} title={tip}>
               {state === "broad" ? <i className="kw-dot" aria-hidden /> : null}
-              <span className="kw-t">{k}</span>
+              <span className="kw-t" dir="auto">{k}</span>
               {g.on && isFetching && !c ? <i className="kw-sk" aria-label="Counting" /> : c?.count != null ? <span className="kw-n">{state === "none" ? "0" : compact(c.count)}</span> : null}
               <button type="button" className="kw-x" aria-label={`Remove ${k}`} onClick={() => remove(k)} disabled={busy}>
                 <svg viewBox="0 0 12 12" aria-hidden><path d="M3 3l6 6M9 3l-6 6" /></svg>
@@ -378,10 +381,14 @@ function Keywords({ g, onSave, busy }: { g: BuyerGroup; onSave: SaveKeywords; bu
           }}
         />
       </div>
-      {none.length || broad.length ? (
+      {none.length ? (
         <p className="kw-warn">
-          {none.length ? `${none.join(", ")} ${none.length === 1 ? "matches" : "match"} no companies here. ` : ""}
-          {broad.length ? `${broad.join(", ")} barely ${broad.length === 1 ? "narrows" : "narrow"} the search.` : ""}
+          {none.join(", ")} {none.length === 1 ? "matches" : "match"} no companies here. Remove {none.length === 1 ? "it" : "them"} or try a close word.
+        </p>
+      ) : null}
+      {broad.length ? (
+        <p className="kw-note">
+          {broad.join(", ")} {broad.length === 1 ? "fits" : "fit"} most of this audience already, so {broad.length === 1 ? "it widens" : "they widen"} your reach more than {broad.length === 1 ? "it narrows" : "they narrow"} it.
         </p>
       ) : null}
       {msg ? (
@@ -404,69 +411,174 @@ function Keywords({ g, onSave, busy }: { g: BuyerGroup; onSave: SaveKeywords; bu
   );
 }
 
-export function GroupCard({ g, count, onToggle, onKeywords, busy, stale = false }: { g: BuyerGroup; count: number | null | undefined; onToggle: () => void; onKeywords: SaveKeywords; busy: boolean; stale?: boolean }) {
+/** Merges touching size bands, so "11 to 50, 51 to 200, 201 to 500" reads as "11 to 500 employees". */
+export function sizeRange(sizes: string[]): string {
+  const bands = sizes
+    .map((x) => x.split(",").map((n) => (n === "" ? null : Number(n))) as [number, number | null])
+    .filter(([lo]) => Number.isFinite(lo))
+    .sort((a, b) => a[0] - b[0]);
+  const merged: [number, number | null][] = [];
+  for (const [lo, hi] of bands) {
+    const last = merged.at(-1);
+    if (last && last[1] != null && lo <= last[1] + 1) last[1] = hi == null ? null : Math.max(last[1], hi);
+    else merged.push([lo, hi]);
+  }
+  return merged.map(([lo, hi]) => sizeLabel(`${lo},${hi ?? ""}`)).join(", ") + " employees";
+}
+
+export function GroupCard({
+  g,
+  count,
+  onToggle,
+  onKeywords,
+  busy = false,
+  stale = false,
+  readOnly = false,
+  examples = [],
+}: {
+  g: BuyerGroup;
+  count: number | null | undefined;
+  onToggle?: () => void;
+  onKeywords?: SaveKeywords;
+  busy?: boolean;
+  stale?: boolean;
+  /** Same card for reading only: no switch, keywords shown without editing. */
+  readOnly?: boolean;
+  /** Real people from the market sample in this audience. First name and last initial only. */
+  examples?: { firstName: string; lastInitial: string; title: string | null; company: string | null; hasEmail: boolean }[];
+}) {
   const more = g.goals.length || g.objections.length || g.technologies.length || g.lookalikeDomains.length;
+  const counted = count != null || stale;
   return (
-    <article className={`bg${g.on ? "" : " off"}`}>
-      <div className="bg-top">
-        <div>
+    <article className={`bg bg2${g.on ? "" : " off"}`}>
+      <header className="bg2-head">
+        <span className="bg2-ic" aria-hidden="true">
+          <Icon id={audienceIcon(g.name, g.keywords)} />
+        </span>
+        <div className="bg2-title">
           <span className={`bg-pri${g.priority === 1 ? " first" : ""}`}>{ordinal(g.priority)}</span>
-          <h3>{g.name}</h3>
-          <span className="bg-n">{count != null || stale ? <><b><Counter value={count ?? null} stale={stale} /></b> matching people</> : "Count appears when lead search is connected"}</span>
+          <h3 dir="auto">{g.name}</h3>
+          {g.description ? <p dir="auto">{g.description}</p> : null}
         </div>
-        <Switch2 on={g.on} onChange={onToggle} label={`Include ${g.name}`} disabled={busy} />
-      </div>
-      {g.description ? <p className="bg-why">{g.description}</p> : null}
-      {g.why ? (
-        <p className="bg-buy">
-          <b>Why they buy.</b> {g.why}
-        </p>
-      ) : null}
-      {g.pains.length ? (
-        <>
-          <div className="bg-k">Pain points</div>
-          <ul className="bg-pains">
-            {g.pains.map((p) => (
-              <li key={p}>{p}</li>
-            ))}
-          </ul>
-        </>
-      ) : null}
-      <dl className="bg-meta">
-        <div>
-          <dt>Titles</dt>
-          <dd>
-            {g.titles.map((t) => (
-              <span className="bg-t" key={t}>
-                {t}
-              </span>
-            ))}
-            {g.includeSimilarTitles ? <span className="bg-sim">and similar</span> : null}
-          </dd>
-        </div>
-        {g.seniorities.length ? (
-          <div>
-            <dt>Seniority</dt>
-            <dd>{g.seniorities.map((x) => SENIORITY[x] ?? x).join(", ")}</dd>
+        <div className="bg2-side">
+          {!readOnly && onToggle ? <Switch2 on={g.on} onChange={onToggle} label={`Include ${g.name}`} disabled={busy} /> : null}
+          <div className="bg2-count">
+            {counted ? (
+              <>
+                <b>
+                  <Counter value={count ?? null} stale={stale} />
+                </b>
+                <span>people match</span>
+              </>
+            ) : (
+              <span>Count appears when lead search is connected</span>
+            )}
           </div>
-        ) : null}
-        {g.sizes.length ? (
+        </div>
+      </header>
+
+      {g.why || g.pains.length ? (
+        <div className="bg2-insight">
+          {g.why ? (
+            <section>
+              <h4>Why they buy</h4>
+              <p dir="auto">{g.why}</p>
+            </section>
+          ) : null}
+          {g.pains.length ? (
+            <section>
+              <h4>Pain points</h4>
+              <ul>
+                {g.pains.map((p) => (
+                  <li key={p} dir="auto">
+                    {p}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </div>
+      ) : null}
+
+      <section className="bg2-sec">
+        <h4>Who we&apos;ll email</h4>
+        <dl className="bg2-facts">
+          <div className="wide">
+            <dt>Job titles</dt>
+            <dd>
+              {g.titles.map((t) => (
+                <span className="bg-t" key={t} dir="auto">
+                  {t}
+                </span>
+              ))}
+              {g.includeSimilarTitles ? <span className="bg2-sim">and similar titles</span> : null}
+            </dd>
+          </div>
+          {g.seniorities.length ? (
+            <div>
+              <dt>Seniority</dt>
+              <dd>{g.seniorities.map((x) => SENIORITY[x] ?? x).join(", ")}</dd>
+            </div>
+          ) : null}
           <div>
             <dt>Company size</dt>
-            <dd>{g.sizes.map((x) => `${sizeLabel(x)} employees`).join(", ")}</dd>
+            <dd>{g.sizes.length ? sizeRange(g.sizes) : "Any size"}</dd>
           </div>
-        ) : null}
-        <div>
-          <dt>Countries</dt>
-          <dd>{g.regions.join(", ") || "Any"}</dd>
-        </div>
-        <div className="bg-kw">
-          <dt>Company type</dt>
-          <dd>
-            <Keywords g={g} onSave={onKeywords} busy={busy} />
-          </dd>
-        </div>
-      </dl>
+          <div>
+            <dt>Countries</dt>
+            <dd>{g.regions.join(", ") || "Any country"}</dd>
+          </div>
+        </dl>
+      </section>
+
+      {examples.length ? (
+        <section className="bg2-sec">
+          <h4>
+            Real people in this audience
+            <span>Last names and email addresses stay hidden until you launch.</span>
+          </h4>
+          <ul className="bg2-people">
+            {examples.slice(0, 3).map((x, i) => (
+              <li key={`${x.firstName}-${x.company}-${i}`}>
+                <span className="bg2-av" aria-hidden="true">
+                  {x.firstName.charAt(0)}
+                </span>
+                <span className="bg2-who">
+                  <b>
+                    {x.firstName} {x.lastInitial ? `${x.lastInitial}.` : ""}
+                  </b>
+                  <small dir="auto">{[x.title, x.company].filter(Boolean).join(" at ")}</small>
+                </span>
+                {x.hasEmail ? (
+                  <span className="bg2-mail">
+                    <Icon id="check" />
+                    Email on file
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <section className="bg2-sec">
+        <h4>
+          Industry keywords
+          <span>We look for these words in company profiles.</span>
+        </h4>
+        {readOnly || !onKeywords ? (
+          <div className="bg2-kws">
+            {g.keywords.map((k) => (
+              <span className="bg-t" key={k} dir="auto">
+                {k}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <Keywords g={g} onSave={onKeywords} busy={busy} />
+        )}
+      </section>
+
       {more ? (
         <details className="bg-more">
           <summary>More about this group</summary>
@@ -510,34 +622,61 @@ export function BrandSheet({ a }: { a: AnalysisSummary }) {
   if (bd.customer_size_hint) rows.push(["Customer size", bd.customer_size_hint]);
   if (bd.price_level) rows.push(["Pricing", bd.price_level]);
   if (bd.named_customers.length) rows.push(["Named customers", bd.named_customers.map((c) => <span className="bg-t" key={c}>{c}</span>)]);
-  const sourced = [...bd.differentiators.map((d) => ({ ...d, k: "Different because" })), ...bd.proof.slice(1).map((p) => ({ ...p, k: "Proof" }))];
-  if (!rows.length && !sourced.length) return null;
+  // Each kind of evidence is one row with its items listed inside, so a label never repeats down the table.
+  const groups = (
+    [
+      ["What sets them apart", bd.differentiators],
+      ["Proof", bd.proof.slice(1)],
+    ] as [string, { text: string; source: string }[]][]
+  ).filter(([, items]) => items.length);
+  if (!rows.length && !groups.length) return null;
   return (
     <section className="an-sheet brand">
       <div className="facts-h">
-        <h2>More we found</h2>
-        <span>
-          Confidence {Math.round(a.confidence * 100)}%{a.source === "answers" ? " · built from your answers" : ""}
-        </span>
+        <h2>Offer and positioning</h2>
+        {a.source === "answers" ? <span>Built from your answers</span> : null}
       </div>
       {rows.map(([k, v]) => (
         <div className="fact" key={k}>
           <span className="fact-l">{k}</span>
-          <div className="brand-v">{v}</div>
+          <div className="brand-v" dir="auto">
+            {v}
+          </div>
           <span />
         </div>
       ))}
-      {sourced.map((x) => (
-        <div className="fact" key={`${x.k}-${x.text}`}>
-          <span className="fact-l">{x.k}</span>
-          <div className="brand-v">{x.text}</div>
-          <span className="src" title="Where this came from">
-            <Icon id="link" />
-            {sourceLabel(x.source)}
-          </span>
-        </div>
+      {groups.map(([k, items]) => (
+        <EvidenceRow key={k} label={k} items={items} />
       ))}
     </section>
+  );
+}
+
+function EvidenceRow({ label, items }: { label: string; items: { text: string; source: string }[] }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? items : items.slice(0, 3);
+  return (
+    <div className="fact ev-row">
+      <span className="fact-l">{label}</span>
+      <ul className="ev-list">
+        {shown.map((x) => (
+          <li key={x.text}>
+            <span dir="auto">{x.text}</span>
+            <span className="src" title="Where this came from">
+              <Icon id="link" />
+              {sourceLabel(x.source)}
+            </span>
+          </li>
+        ))}
+        {items.length > 3 ? (
+          <li className="ev-more">
+            <button type="button" className="au-link" onClick={() => setAll(!all)}>
+              {all ? "Show fewer" : `Show ${items.length - 3} more`}
+            </button>
+          </li>
+        ) : null}
+      </ul>
+    </div>
   );
 }
 

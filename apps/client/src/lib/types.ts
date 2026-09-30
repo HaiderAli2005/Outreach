@@ -111,8 +111,13 @@ export interface SendingDomain {
   id: string;
   name: string;
   priceCents: number;
-  status: "SELECTED" | "PENDING_REGISTRATION" | "REGISTERED" | "FAILED";
+  status: "SELECTED" | "PENDING_REGISTRATION" | "REGISTERING" | "REGISTERED" | "FAILED";
   forwardTo: string | null;
+  /** The domain originally picked, when it was taken at purchase time and a close alternative was registered. */
+  replacedName?: string | null;
+  prewarmed?: boolean;
+  dnsVerifiedAt?: string | null;
+  lastError?: string | null;
 }
 
 export interface Mailbox {
@@ -120,9 +125,12 @@ export interface Mailbox {
   sendingDomainId: string | null;
   address: string;
   provider: string;
-  status: "PLANNED" | "PENDING" | "WARMING" | "ACTIVE" | "ERROR";
+  status: "PLANNED" | "PENDING" | "CREATING" | "CONNECTING" | "WARMING" | "ACTIVE" | "ERROR" | "RELEASED";
   warmupDays: number;
   dailyLimit: number;
+  sendCap?: number | null;
+  warmupStartedAt?: string | null;
+  lastError?: string | null;
   sendingDomain?: { name: string; status: string } | null;
 }
 
@@ -209,7 +217,7 @@ export interface MarketView {
   sample: { size: number; byCountry: [string, number][]; bySize: [string, number][]; bySeniority: [string, number][] };
   prospects: { audienceId?: string; firstName: string; lastInitial: string; title: string | null; company: string | null; country: string | null; hasEmail: boolean }[];
   /** Examples grouped from the people sample, not a market total. */
-  companies?: { audienceId: string; name: string; domain: string | null; country: string | null; employees: number | null; description: string | null }[];
+  companies?: { audienceId: string; name: string; domain: string | null; country: string | null; employees: number | null; description: string | null; people?: number; titles?: string[] }[];
   checkedAt: string;
 }
 
@@ -567,6 +575,7 @@ export interface MailboxesView {
   attached: number[];
   planned: Mailbox[];
   defaultCampaignId: string | null;
+  accountsError?: string;
 }
 
 export interface Member {
@@ -620,4 +629,31 @@ export interface Invoice {
   periodStart: string | null;
   periodEnd: string | null;
   createdAt: string;
+}
+
+export interface InfraProblem {
+  kind: "domain" | "mailbox";
+  id: string;
+  orgId: string;
+  orgName: string;
+  name: string;
+  status: string;
+  error: string | null;
+  attempts: number;
+  updatedAt: string;
+}
+
+export interface InfraOverview {
+  configured: boolean;
+  sslForwarding: boolean;
+  dedicatedIpFromVolume: number;
+  missingContact: string[];
+  balance: { availableCents: number; autoTopup: boolean } | null;
+  balanceError: string | null;
+  workspaces: number;
+  dedicatedIps: number;
+  domains: Record<string, number>;
+  mailboxes: Record<string, number>;
+  held: { orgId: string; orgName: string; reason: string; since: string | null }[];
+  problems: InfraProblem[];
 }

@@ -1,4 +1,4 @@
-export const PROMPT_VERSION = "analysis-prompt-v1";
+export const PROMPT_VERSION = "analysis-prompt-v2";
 
 export const ALLOWED_SENIORITIES = ["owner", "founder", "c_suite", "partner", "vp", "head", "director", "manager", "senior", "entry", "intern"] as const;
 export const ALLOWED_COMPANY_SIZES = ["1,10", "11,50", "51,200", "201,500", "501,1000", "1001,5000", "5001,"] as const;
@@ -57,13 +57,27 @@ ${JSON.stringify(ALLOWED_COMPANY_SIZES)}
 1. Evidence order. When the website and a web result disagree about what the company sells,
    its prices or its customers, the website wins. Web results may only add facts, never
    overwrite them.
-2. Every entry in \`proof\` and \`differentiators\` carries the URL it came from. No source means
-   you must drop the item.
-3. Unknown means null. Never estimate a founding year, a headcount, a price or a country.
-4. English only in the output. Record the website's language in \`language\`.
-5. Never invent customer names. \`named_customers\` comes only from logos or text on the site.
-6. No marketing adjectives. Write what the company does, not how good it is.
-7. Return valid JSON and nothing else. No markdown fence, no commentary, no trailing text.
+2. Every entry in \`proof\`, \`differentiators\` and \`evidence\` carries the \`url\` of the page above
+   it came from, copied exactly as written there ("/pricing", "/"). Its text uses the page's own
+   facts and key words. No page, or a page that doesn't say it, means you drop the item.
+   The application checks every item against the page and deletes what it can't find.
+3. \`proof\` is evidence that the company delivers: results, customer counts, named clients,
+   ratings, awards, certifications, guarantees. A product description is not proof ("SSL
+   certificates keep your site safe" is an offering, not proof). Up to 4, the strongest first.
+   \`differentiators\` are up to 4 reasons to pick this company over others, each under 12 words
+   in plain language. Never copy a marketing sentence whole; keep its facts and numbers exact.
+   Never repeat the same point in both lists.
+4. Every number, percentage, price, year or count you write must appear on the pages. Never
+   round, convert currencies or add numbers of your own.
+5. Unknown means null. Never estimate a founding year, a headcount, a price or a country.
+6. English only in the output. Record the website's language in \`language\`.
+7. \`named_customers\` and \`buyer_titles_seen\` come only from what the pages or the extracted
+   signals show. \`competitors\` only lists companies the site itself names or compares
+   against; never add competitors from your own knowledge.
+8. No marketing adjectives. Write what the company does, not how good it is.
+9. Your judgement is welcome for the audiences (who to email and why), never for facts about
+   the company.
+10. Return valid JSON and nothing else. No markdown fence, no commentary, no trailing text.
 
 ### HOW TO CHOOSE THE AUDIENCE
 
@@ -79,8 +93,8 @@ ${JSON.stringify(ALLOWED_COMPANY_SIZES)}
 - \`exclude_domains\`: always include ${d}, plus any competitor the site names.
 - Fill \`revenue_range\`, \`technologies\`, \`signals\` and \`lookalike_domains\` only when the material
   supports them. Leave them empty otherwise. Do not guess.
-- \`lookalike_domains\`: up to 5 domains of companies that look like ideal customers, usually the
-  company's own named customers.
+- \`lookalike_domains\`: up to 5 domains of the company's own named customers, only when the
+  domain is written on the site. Empty otherwise.
 - Never estimate audience size. The application measures it.
 
 ### HOW TO WRITE KEYWORDS
@@ -128,8 +142,14 @@ will ask the user three questions instead of trusting your answer.
 
 ### IF THE BUSINESS SELLS TO CONSUMERS
 
-Set \`warning\` to explain it, and still return the closest business audiences, for example the
-shops, clinics or agencies that serve those consumers.
+Set \`warning\` to one plain sentence written to the owner, for example "You mainly sell to consumers,
+so these audiences are the shops and clinics that buy from you." Still return the closest business audiences.
+
+### WARNING IS FOR THE CUSTOMER ONLY
+
+\`warning\` is shown to the business owner. Use it only for the consumer case above; otherwise it is null.
+Never use it for notes about your own work: unclear pricing, conflicting numbers on the site, what is
+verified or estimated, or how filters work. Leave an unclear field empty instead of explaining it.
 
 ---
 
@@ -156,7 +176,7 @@ shops, clinics or agencies that serve those consumers.
     "evidence": [{ "claim": string, "source": string }]
   },
 
-  "warning": string | null,
+  "warning": string | null,                  // null unless the business sells to consumers
 
   "target_audience": [
     {
@@ -248,7 +268,9 @@ shops, clinics or agencies that serve those consumers.
 ### BEFORE YOU ANSWER, CHECK
 
 - Valid JSON, nothing outside it
-- Every proof and differentiator has a source
+- Every proof, differentiator and evidence item uses a page url from above, and the page says it
+- Every number you wrote is on the pages
+- Competitors and named customers are named on the site, not from your own knowledge
 - 3 to 6 audiences, each one would need a different email
 - Every title is a real job title, no duplicates across audiences
 - Every seniority and company size comes from the allowed lists
@@ -259,3 +281,92 @@ shops, clinics or agencies that serve those consumers.
 - No audience size is estimated anywhere
 - Nothing invented: if the material did not say it, it is null or empty`;
 }
+
+const S = (type: string | string[], extra: Record<string, unknown> = {}) => ({ type, ...extra });
+const strArr = { type: "array", items: { type: "string" } };
+const sourcedArr = {
+  type: "array",
+  items: { type: "object", additionalProperties: false, required: ["text", "source"], properties: { text: S("string"), source: S("string") } },
+};
+
+/** Strict structured-output schema for the analysis, so the answer always has the shape the validator expects. */
+export const ANALYSIS_SCHEMA = {
+  name: "business_analysis",
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["brand_detail", "warning", "target_audience"],
+    properties: {
+      brand_detail: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "company_name", "one_liner", "offerings", "business_model", "customer_types", "customer_size_hint", "geographies", "price_level", "proof",
+          "differentiators", "named_customers", "buyer_titles_seen", "competitors", "language", "brand_voice", "confidence", "evidence",
+        ],
+        properties: {
+          company_name: S("string"),
+          one_liner: S("string"),
+          offerings: strArr,
+          business_model: { type: ["string", "null"], enum: ["B2B", "B2C", "both", null] },
+          customer_types: strArr,
+          customer_size_hint: S(["string", "null"]),
+          geographies: strArr,
+          price_level: S(["string", "null"]),
+          proof: sourcedArr,
+          differentiators: sourcedArr,
+          named_customers: strArr,
+          buyer_titles_seen: strArr,
+          competitors: strArr,
+          language: S("string"),
+          brand_voice: S("string"),
+          confidence: S("number"),
+          evidence: {
+            type: "array",
+            items: { type: "object", additionalProperties: false, required: ["claim", "source"], properties: { claim: S("string"), source: S("string") } },
+          },
+        },
+      },
+      warning: S(["string", "null"]),
+      target_audience: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "id", "priority", "name", "description", "why_they_buy", "goals", "pain_points", "objections", "titles", "include_similar_titles", "seniorities",
+            "company_sizes", "countries", "keywords", "keyword_suggestions", "revenue_range", "technologies", "signals", "lookalike_domains", "exclude_domains", "email_status",
+          ],
+          properties: {
+            id: S("string"),
+            priority: S("integer"),
+            name: S("string"),
+            description: S("string"),
+            why_they_buy: S("string"),
+            goals: strArr,
+            pain_points: strArr,
+            objections: strArr,
+            titles: strArr,
+            include_similar_titles: S("boolean"),
+            seniorities: { type: "array", items: { type: "string", enum: [...ALLOWED_SENIORITIES] } },
+            company_sizes: { type: "array", items: { type: "string", enum: [...ALLOWED_COMPANY_SIZES] } },
+            countries: strArr,
+            keywords: strArr,
+            keyword_suggestions: strArr,
+            revenue_range: { type: "object", additionalProperties: false, required: ["min", "max"], properties: { min: S(["number", "null"]), max: S(["number", "null"]) } },
+            technologies: strArr,
+            signals: {
+              type: "object",
+              additionalProperties: false,
+              required: ["hiring_for_titles", "headcount_growth_pct_min", "recently_funded"],
+              properties: { hiring_for_titles: strArr, headcount_growth_pct_min: S(["number", "null"]), recently_funded: S("boolean") },
+            },
+            lookalike_domains: strArr,
+            exclude_domains: strArr,
+            email_status: { type: "array", items: { type: "string", enum: ["verified"] } },
+          },
+        },
+      },
+    },
+  },
+};

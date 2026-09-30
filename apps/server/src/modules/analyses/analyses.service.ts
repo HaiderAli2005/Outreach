@@ -4,6 +4,7 @@ import { logger } from "../../lib/logger.js";
 import { notFound } from "../../lib/errors.js";
 import { features } from "../../config/env.js";
 import { getAi, requireAi } from "../../integrations/ai.js";
+import { sourceFor } from "../onboarding/grounding.js";
 import { analyzeCore, aiErrorReason, market, preview, type BuyerGroup } from "../onboarding/onboarding.service.js";
 import { normalizeDomain, type Analysis } from "../onboarding/analysisValidate.js";
 import { EventWriter, STEP_KEYS, keepAlive, runBus, sseHeaders, sseWrite, type StepKey } from "./events.js";
@@ -132,17 +133,21 @@ export function audienceIcon(name: string, keywords: string[] = []): string {
 
 function factItems(a: Analysis, domain: string): { text: string; source: string }[] {
   const bd = a.brand_detail;
-  const first = pathOf(bd.evidence[0]?.source ?? "/", domain);
+  // A fact names a page only when checked evidence from that page says it; otherwise it is a summary of the site.
+  const from = (text: string) => {
+    const src = sourceFor(text, bd.evidence);
+    return src ? pathOf(src, domain) : "from your site";
+  };
   const out: { text: string; source: string }[] = [];
-  if (bd.company_name) out.push({ text: `Company: ${bd.company_name}`, source: first });
-  if (bd.one_liner) out.push({ text: bd.one_liner, source: first });
-  for (const x of bd.offerings) out.push({ text: `Offers ${x}`, source: first });
-  if (bd.customer_types.length) out.push({ text: `Sells to ${bd.customer_types.join(", ")}`, source: first });
-  if (bd.geographies.length) out.push({ text: `Operates in ${bd.geographies.join(", ")}`, source: first });
-  if (bd.price_level) out.push({ text: `Pricing: ${bd.price_level}`, source: first });
+  if (bd.company_name) out.push({ text: `Company: ${bd.company_name}`, source: "from your site" });
+  if (bd.one_liner) out.push({ text: bd.one_liner, source: from(bd.one_liner) });
+  for (const x of bd.offerings) out.push({ text: `Offers ${x}`, source: from(x) });
+  if (bd.customer_types.length) out.push({ text: `Sells to ${bd.customer_types.join(", ")}`, source: from(bd.customer_types.join(" ")) });
+  if (bd.geographies.length) out.push({ text: `Operates in ${bd.geographies.join(", ")}`, source: from(bd.geographies.join(" ")) });
+  if (bd.price_level) out.push({ text: `Pricing: ${bd.price_level}`, source: from(bd.price_level) });
   for (const p of bd.proof) out.push({ text: p.text, source: pathOf(p.source, domain) });
   for (const d of bd.differentiators) out.push({ text: d.text, source: pathOf(d.source, domain) });
-  if (bd.competitors.length) out.push({ text: `Competes with ${bd.competitors.join(", ")}`, source: first });
+  if (bd.competitors.length) out.push({ text: `Competes with ${bd.competitors.join(", ")}`, source: "from your site" });
   return out;
 }
 
@@ -280,7 +285,7 @@ async function runJob(runId: string, orgId: string, domain: string): Promise<voi
       groups = r.total;
       if (!sizing.has(r.index)) log(`sizing audience ${r.index + 1} of ${r.total}`);
       item("size", { kind: "count", audienceId: r.group.id, total: r.count, reachable: r.verified, companiesInSample: r.companiesInSample, companiesTotal: r.companiesTotal });
-      for (const c of r.companies.slice(0, LIVE_COMPANIES)) item("size", { kind: "company", audienceId: r.group.id, name: c.name, domain: c.domain, country: c.country, employees: c.employees });
+      for (const c of r.companies.slice(0, LIVE_COMPANIES)) item("size", { kind: "company", audienceId: r.group.id, name: c.name, domain: c.domain, country: c.country, employees: c.employees, people: c.people, titles: c.titles });
       for (const p of r.people.slice(0, LIVE_PEOPLE))
         item("size", { kind: "person", audienceId: r.group.id, firstName: p.firstName, lastNameMasked: p.lastInitial ? `${p.lastInitial}***` : "***", title: p.title, company: p.company, country: p.country, hasEmail: p.hasEmail });
       log(`sizing audience ${r.index + 1} of ${r.total}`, "done");

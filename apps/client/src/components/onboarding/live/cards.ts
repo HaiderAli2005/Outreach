@@ -74,7 +74,7 @@ export function railCards(args: {
   const audiences =
     live && run.audiences.length
       ? run.audiences.map((a) => ({ id: a.id, name: a.name, icon: AUDIENCE_ICON[a.icon] ?? ("users" as IconId), count: a.count?.total ?? null }))
-      : o.groups.filter((g) => g.on).map((g) => ({ id: g.id, name: g.name, icon: audienceIcon(g.name, g.keywords), count: market?.groups.find((x) => x.id === g.id)?.count ?? null }));
+      : o.groups.map((g) => ({ id: g.id, name: g.name, icon: audienceIcon(g.name, g.keywords), count: market?.groups.find((x) => x.id === g.id)?.count ?? null }));
   if (audiences.length && ((live && run.stepState.validate === "done") || o.analyzedAt || docked.buyers))
     cards.push({
       key: "buyers",
@@ -90,7 +90,7 @@ export function railCards(args: {
   const available = liveMarket ? size.available : market?.available;
   const people = liveMarket ? size.people ?? null : market?.people ?? null;
   const reach = liveMarket ? size.reachable ?? null : market?.verified ?? null;
-  if (liveMarket || (o.analyzedAt && market))
+  if (liveMarket || (o.analyzedAt && (market || docked.market)))
     cards.push({
       key: "market",
       icon: "target",
@@ -100,12 +100,23 @@ export function railCards(args: {
       step: 2,
     });
 
+  const prospects = live && run.people.length ? run.people.length : market?.prospects.length ?? 0;
+  if (prospects && (liveMarket || o.analyzedAt))
+    cards.push({ key: "prospects", icon: "users", title: "Sample prospects", detail: `${n0(prospects)} ${prospects === 1 ? "person" : "people"}`, step: 2 });
+
   const write = run.summaries.write as { available?: boolean } | undefined;
   const emails = live && run.drafts.length ? run.drafts.length : o.preview?.length ?? 0;
   if ((live && write) || emails || docked.sequence)
     cards.push({ key: "sequence", icon: "st-mail", title: "Sample sequence", detail: emails ? `${emails} email${emails === 1 ? "" : "s"}` : "Not written yet", step: 1 });
 
-  if (draft && (max > 3 || docked.volume)) cards.push({ key: "volume", icon: "st-gauge", title: "Volume", detail: `${n0(draft.volume)}/day`, step: 3 });
+  // The audiences are confirmed once the preview has been left for the setup.
+  if (o.groups.length && (max > 2 || docked.confirmed)) {
+    const on = o.groups.filter((g) => g.on).length;
+    const off = o.groups.length - on;
+    cards.push({ key: "confirmed", icon: "check", title: "Audiences confirmed", detail: off ? `${on} on, ${off} off` : `All ${on} on`, step: 2 });
+  }
+
+  if (draft && (max > 3 || docked.volume)) cards.push({ key: "volume", icon: "st-gauge", title: "Volume", detail: `${n0(draft.volume)} a day`, step: 3 });
   if (draft && draft.picks.length && (max > 4 || docked.domains))
     cards.push({ key: "domains", icon: "globe", title: "Domains", detail: `${draft.picks.length} chosen`, list: draft.picks.map((d) => ({ icon: "globe" as IconId, text: d })), step: 4 });
   if (draft && t && t.inboxes && (max > 5 || docked.inboxes))
@@ -113,10 +124,11 @@ export function railCards(args: {
       key: "inboxes",
       icon: "inbox",
       title: "Inboxes",
-      detail: `${t.inboxes} on ${t.picked.length} domain${t.picked.length === 1 ? "" : "s"}, ${draft.fast ? "pre-warmed" : `${draft.warmup}-day warmup`}`,
+      detail: `${t.inboxes} · ${draft.fast ? "pre-warmed" : `${draft.warmup}-day warmup`}`,
+      list: [{ icon: "globe" as IconId, text: `Across ${t.picked.length} domain${t.picked.length === 1 ? "" : "s"}` }],
       step: 5,
     });
-  if (setupDone || docked.setup) cards.push({ key: "setup", icon: "st-send", title: "Setup complete", detail: "Domains, DNS, inboxes and warmup", step: 7 });
+  if (setupDone || docked.setup) cards.push({ key: "setup", icon: "st-send", title: "Launch", detail: "Domains, DNS, inboxes and warmup set up", step: 7 });
   return cards;
 }
 

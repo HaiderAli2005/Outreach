@@ -25,7 +25,7 @@ export type Item =
   | { kind: "keyword"; audienceId: string; word: string; suggestion?: boolean }
   | { kind: "repair"; field: string; from: string | null; to: string | null; note: string }
   | { kind: "count"; audienceId: string; total: number | null; reachable: number | null; companiesInSample: number; companiesTotal: number | null }
-  | { kind: "company"; audienceId: string; name: string; domain: string | null; country: string | null; employees: number | null }
+  | { kind: "company"; audienceId: string; name: string; domain: string | null; country: string | null; employees: number | null; people?: number; titles?: string[] }
   | { kind: "person"; audienceId: string; firstName: string; lastNameMasked: string; title: string | null; company: string | null; country: string | null; hasEmail: boolean }
   | { kind: "draft"; step: number; subject: string; bodyChunk: string; tab?: string; day?: string };
 

@@ -47,14 +47,14 @@ function modelOutput(over: { brand?: Record<string, unknown>; audiences?: unknow
       geographies: ["United Kingdom"],
       price_level: null,
       proof: [{ text: "Used by 200 agencies", source: "/customers" }],
-      differentiators: [{ text: "Automatic reminders", source: "/services" }],
+      differentiators: [{ text: "Automatic payment reminders", source: "/" }],
       named_customers: ["Brightlabs"],
       buyer_titles_seen: ["Managing Director"],
       competitors: [],
       language: "en",
       brand_voice: "We get agencies paid. No chasing.",
       confidence: 0.8,
-      evidence: [{ claim: "Sells to agencies", source: "/customers" }],
+      evidence: [{ claim: "Built for agencies", source: "/customers" }],
       ...over.brand,
     },
     warning: over.warning ?? null,
@@ -85,8 +85,8 @@ const site = () =>
   setSiteReader(async () => ({
     home: { title: "Northwind", description: null, lang: "en" },
     pages: [
-      { path: "/", title: "Northwind", text: "Invoicing for agencies. Plans from £49 a month. Call +44 20 7946 0000.", logos: ["Brightlabs", "Harbor & Co"] },
-      { path: "/customers", title: "Customers", text: '"We get paid in half the time." Jane Doe, Managing Director at Brightlabs' },
+      { path: "/", title: "Northwind", text: "Invoicing for agencies with automatic payment reminders. Plans from £49 a month. Call +44 20 7946 0000.", logos: ["Brightlabs", "Harbor & Co"] },
+      { path: "/customers", title: "Customers", text: '"We get paid in half the time." Jane Doe, Managing Director at Brightlabs. Invoicing built for agencies, used by 200 agencies across the UK.' },
     ],
   }));
 
@@ -221,11 +221,19 @@ describe("analysis prompt v1", () => {
       organization_num_employees_ranges: ["11,50"],
       person_locations: ["United Kingdom"],
       q_organization_keyword_tags: ["marketing agency"],
-      currently_using_any_of_technology_uids: ["shopify"],
       q_organization_job_titles: ["Finance Manager"],
       revenue_range: { min: 1000000 },
     });
+    // Guessed technology ids return zero people at Apollo, so they are never sent.
+    expect(calls[0]).not.toHaveProperty("currently_using_any_of_technology_uids");
     expect(market.body.data.prospects.map((p: { company: string }) => p.company)).toEqual(["Acme"]);
+  });
+});
+
+describe("Apollo filters", () => {
+  it("drops empty filters, which Apollo rejects with a 422", async () => {
+    const { compactFilters } = await import("../src/integrations/apollo.js");
+    expect(compactFilters({ person_titles: ["Founder"], organization_num_employees_ranges: [], revenue_range: {}, q: "", x: null })).toEqual({ person_titles: ["Founder"] });
   });
 });
 

@@ -157,7 +157,7 @@ export function LaunchStep({
   const boxesActive = boxes.length > 0 && boxes.every((m) => m.status === "ACTIVE");
   const stage = !registered || !boxesReady ? 0 : boxesActive ? 2 : 1;
   const names = domains.slice(0, 2).map((d) => d.name).join(", ") + (domains.length > 2 ? ` +${domains.length - 2}` : "");
-  const pendingDomains = domains.filter((d) => d.status === "PENDING_REGISTRATION").length;
+  const pendingDomains = domains.filter((d) => d.status === "PENDING_REGISTRATION" || d.status === "REGISTERING").length;
   const failedDomains = domains.filter((d) => d.status === "FAILED").length;
 
   const rows: { t: string; d: string; s: RowState }[] = [
@@ -169,7 +169,13 @@ export function LaunchStep({
     { t: "Publishing SPF, DKIM and DMARC", d: registered ? `${domains.length * 4} records` : "After registration", s: registered ? "done" : "wait" },
     {
       t: `Creating ${boxes.length} inboxes`,
-      d: boxesReady ? `${boxes.length} inboxes ready` : boxes.some((m) => m.status === "PENDING") ? "Queued" : "After registration",
+      d: boxesReady
+        ? `${boxes.length} inboxes ready`
+        : boxes.some((m) => m.status === "CREATING" || m.status === "CONNECTING" || m.status === "WARMING")
+          ? `${boxes.filter((m) => m.status === "WARMING" || m.status === "ACTIVE").length} of ${boxes.length} ready`
+          : boxes.some((m) => m.status === "PENDING")
+            ? "Queued"
+            : "After registration",
       s: boxesReady ? "done" : registered ? "run" : "wait",
     },
     {

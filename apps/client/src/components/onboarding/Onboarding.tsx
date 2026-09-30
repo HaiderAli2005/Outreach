@@ -22,7 +22,7 @@ import type { OnboardingState } from "@/lib/types";
 import { money, normDomain, validDomain } from "@/lib/format";
 import { AuthCard } from "./AuthStep";
 import { AnalysisStep } from "./AnalysisStep";
-import { PreviewStep } from "./PreviewStep";
+import { PreviewStep, type PreviewFocus } from "./PreviewStep";
 import { DomainsStep, InboxesStep, PaymentStep, VolumeStep, type Draft } from "./SetupSteps";
 import { DockProvider, ProgressRing, useDock } from "./live/motion";
 import { useRunStream } from "./live/run";
@@ -245,6 +245,7 @@ function OnboardingFlow() {
   const [presenting, setPresenting] = useState(false);
   const [staleRun, setStaleRun] = useState<string | null>(null);
   const [view, setView] = useState<AnalysisView>("review");
+  const [pvFocus, setPvFocus] = useState<PreviewFocus>("all");
   const [audience, setAudience] = useState<string | null>(null);
   const [resumePhase, setResumePhase] = useState<PhaseKey | null>(null);
 
@@ -289,11 +290,14 @@ function OnboardingFlow() {
     },
     [state?.analysisRun?.id, dock, params],
   );
+  // A finished analysis carries straight on to the free overview; a failed or thin one stays here to be fixed.
+  const runOk = run.done && !run.error && run.outcome !== "low-confidence";
   const onPresented = useCallback(() => {
     setPresenting(false);
     setPhaseParam(null);
     dock.settle(["business", "buyers", "market"]);
-  }, [dock, setPhaseParam]);
+    if (runOk) go(2);
+  }, [dock, setPhaseParam, runOk, go]);
 
   useEffect(() => {
     if (!authed || !state || !paramDomain || startedFor.current === paramDomain) return;
@@ -447,6 +451,11 @@ function OnboardingFlow() {
           setNextDisabled={setNextDisabled}
           audience={audience}
           onAudience={setAudience}
+          focus={pvFocus}
+          onShowAll={() => {
+            setPvFocus("all");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
         />
       );
     } else if (cur === 3) body = <VolumeStep {...common} market={market} summary={null} />;
@@ -490,7 +499,7 @@ function OnboardingFlow() {
   // Cards only wait off the rail while they fly in from the analysis. After that every decision stays put.
   const hidden = new Set<string>(presenting ? LIVE_KEYS.filter((k) => dock.phase[k] !== "landed") : []);
   const active = new Set<string>(
-    presenting ? [] : cur === 1 ? [view === "review" ? "sequence" : view] : cur === 2 ? ["buyers", "market"] : cards.filter((c) => c.step === cur).map((c) => c.key),
+    presenting ? [] : cur === 1 ? [view === "review" ? "sequence" : view] : cur === 2 ? (pvFocus === "all" ? ["market", "prospects", "confirmed"] : [{ market: "market", prospects: "prospects", audiences: "confirmed" }[pvFocus]]) : cards.filter((c) => c.step === cur).map((c) => c.key),
   );
   const provRunning = cur === 7 && prov.started && !prov.done;
   const log: RailLog | null =
@@ -520,14 +529,22 @@ function OnboardingFlow() {
             active={active}
             onOpen={(n, key) => {
               if (presenting) return;
-              // Each finished card opens its own section. Before the overview has been reached,
-              // buyers and market open inside the analysis step; after it, they open the overview.
-              const inAnalysis = key === "business" || key === "sequence" || ((key === "buyers" || key === "market") && (cur === 1 || max < 2));
+              // Every card opens its own view. Business, buyers and the sample sequence live in the analysis.
+              // Market, sample prospects and the confirmed audiences each open their own part of the overview.
+              const focusOf: Record<string, PreviewFocus> = { market: "market", prospects: "prospects", confirmed: "audiences" };
+              if (focusOf[key] && max >= 2) {
+                setPvFocus(focusOf[key]);
+                if (cur !== 2) go(2);
+                else window.scrollTo({ top: 0, behavior: "smooth" });
+                return;
+              }
+              const inAnalysis = key === "business" || key === "sequence" || key === "buyers" || key === "market" || key === "prospects";
               if (inAnalysis) {
-                setView(key === "business" ? "business" : key === "buyers" ? "buyers" : key === "market" ? "market" : "review");
+                setView(key === "business" ? "business" : key === "buyers" ? "buyers" : key === "sequence" ? "review" : "market");
                 if (cur !== 1) go(1);
                 return;
               }
+              setPvFocus("all");
               if (n <= max && n !== cur) go(n);
             }}
             log={log}
@@ -542,7 +559,21 @@ function OnboardingFlow() {
         ) : null}
         <main className="lv-centre">
           {!isAuth && ready ? (
-            <StepPills cur={cur} max={max} onGo={go} locked={awaiting} hasDomain={!!domain} canBack={cur > 1 && cur < 7} onBack={() => go(cur - 1)} />
+            <StepPills
+              cur={cur}
+              max={max}
+              onGo={(n) => {
+                setPvFocus("all");
+                go(n);
+              }}
+              locked={awaiting}
+              hasDomain={!!domain}
+              canBack={cur > 1 && cur < 7}
+              onBack={() => {
+                setPvFocus("all");
+                go(cur - 1);
+              }}
+            />
           ) : null}
           <div className="ob-view" ref={viewRef} tabIndex={-1} key={`${cur}-${domain}`}>
             <div ref={DOCK_ON_NEXT[cur] ? dock.source(DOCK_ON_NEXT[cur]) : undefined}>{body}</div>

@@ -1,5 +1,5 @@
 import { prisma } from "../../lib/prisma.js";
-import { unprocessable, upstream } from "../../lib/errors.js";
+import { unprocessable } from "../../lib/errors.js";
 import { smartleadFor } from "../../integrations/smartlead.js";
 import { getSettings } from "../../domain/settings.js";
 import { provisionCampaign } from "../../domain/provisioning.js";
@@ -16,7 +16,8 @@ export async function mailboxes(orgId: string) {
     const accounts = await sl.listMailboxes();
     return { connected: true, accounts: accounts.map((a) => ({ ...a, attached: settings.smartleadMailboxIds.includes(a.id) })), ...base };
   } catch (err) {
-    throw upstream("Smartlead", (err as Error).message);
+    // Keep the inboxes from the setup visible even when Smartlead can't be listed right now.
+    return { connected: true, accounts: [], accountsError: `Smartlead didn't answer: ${(err as Error).message}`, ...base };
   }
 }
 

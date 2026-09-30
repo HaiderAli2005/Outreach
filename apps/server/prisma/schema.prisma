@@ -142,6 +142,7 @@ model Organization {
   usage          UsageCounter[]
   sendingDomains SendingDomain[]
   mailboxes      Mailbox[]
+  infraWorkspace InfraWorkspace?
 }
 
 model Membership {
@@ -331,6 +332,7 @@ model Onboarding {
 enum SendingDomainStatus {
   SELECTED
   PENDING_REGISTRATION
+  REGISTERING
   REGISTERED
   FAILED
 }
@@ -342,20 +344,38 @@ model SendingDomain {
   priceCents     Int
   status         SendingDomainStatus @default(SELECTED)
   forwardTo      String?
+  /// The mail infrastructure provider's id for this domain (Infraforge: dom_...).
+  providerId     String?
+  providerStatus String?
+  prewarmed      Boolean             @default(false)
+  /// The domain the customer picked, when it was taken at purchase time and we registered a close alternative.
+  replacedName   String?
+  registeredAt   DateTime?
+  dnsVerifiedAt  DateTime?
+  sslAt          DateTime?
+  expiresAt      DateTime?
+  autoRenew      Boolean             @default(true)
+  attempts       Int                 @default(0)
+  nextCheckAt    DateTime?
+  lastError      String?
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
   organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   mailboxes      Mailbox[]
 
   @@unique([organizationId, name])
+  @@index([status])
 }
 
 enum MailboxStatus {
   PLANNED
   PENDING
+  CREATING
+  CONNECTING
   WARMING
   ACTIVE
   ERROR
+  RELEASED
 }
 
 model Mailbox {
@@ -363,17 +383,47 @@ model Mailbox {
   organizationId     String
   sendingDomainId    String?
   address            String
+  firstName          String?
+  lastName           String?
   provider           String         @default("google")
+  /// The mail infrastructure provider's id for this inbox (Infraforge mailbox id).
+  providerId         String?
+  providerStatus     String?
   status             MailboxStatus  @default(PLANNED)
   smartleadAccountId String?
   warmupDays         Int            @default(21)
   dailyLimit         Int            @default(40)
+  /// The per-day limit currently set on the sending account, while the campaign ramps up.
+  sendCap            Int?
+  warmupStartedAt    DateTime?
+  activatedAt        DateTime?
+  attempts           Int            @default(0)
+  nextCheckAt        DateTime?
+  lastError          String?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   organization       Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   sendingDomain      SendingDomain? @relation(fields: [sendingDomainId], references: [id], onDelete: SetNull)
 
   @@unique([organizationId, address])
+  @@index([status])
+}
+
+/// One mail infrastructure workspace per organization, so every customer's domains, inboxes and IPs stay separate.
+model InfraWorkspace {
+  organizationId String       @id
+  provider       String       @default("infraforge")
+  workspaceId    String       @unique
+  name           String
+  dedicatedIp    Boolean      @default(false)
+  ip             String?
+  /// Set when purchases are paused, for example when the provider credit balance is too low. Cleared on the next successful run.
+  heldReason     String?
+  heldAt         DateTime?
+  lastRunAt      DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 // ─── Settings & credentials ─────────────────────────────────────────────────

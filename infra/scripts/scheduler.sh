@@ -19,6 +19,8 @@ JOBS=(
   "report-weekly|0 8 * * 1"
   "report-monthly|0 8 1 * *"
   "billing-sync|0 * * * *"
+  "infra-provision|*/2 * * * *"
+  "infra-release|40 3 * * *"
 )
 
 for entry in "${JOBS[@]}"; do

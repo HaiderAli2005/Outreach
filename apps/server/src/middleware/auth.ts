@@ -3,6 +3,9 @@ import type { MemberRole } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { forbidden, unauthorized, notFound } from "../lib/errors.js";
 import { verifyAccessToken } from "../modules/auth/tokens.js";
+import { mailEnabled } from "../integrations/mailer.js";
+import { isProd } from "../config/env.js";
+import { AppError } from "../lib/errors.js";
 
 export const requireAuth: RequestHandler = async (req, _res, next) => {
   const header = req.get("authorization") ?? "";
@@ -16,10 +19,10 @@ export const requireAuth: RequestHandler = async (req, _res, next) => {
   }
   const user = await prisma.user.findUnique({
     where: { id: claims.sub },
-    select: { id: true, email: true, name: true, status: true, isPlatformAdmin: true },
+    select: { id: true, email: true, name: true, status: true, isPlatformAdmin: true, emailVerifiedAt: true },
   });
   if (!user || user.status !== "ACTIVE") return next(unauthorized());
-  req.user = { id: user.id, email: user.email, name: user.name, isPlatformAdmin: user.isPlatformAdmin };
+  req.user = { id: user.id, email: user.email, name: user.name, isPlatformAdmin: user.isPlatformAdmin, emailVerified: !!user.emailVerifiedAt };
   (req as { tokenOrg?: string | null }).tokenOrg = claims.org;
   next();
 };
@@ -51,6 +54,18 @@ export function requireRole(...roles: MemberRole[]): RequestHandler {
 }
 
 export const requireManager = requireRole("OWNER", "ADMIN");
+
+/**
+ * Work that costs money per call (the AI analysis, the sample emails, lead database counts) only runs for people
+ * who have confirmed their email. Without email sending set up nobody can confirm, so outside production that
+ * check is skipped; in production it always applies.
+ */
+export const requireVerifiedEmail: RequestHandler = (req, _res, next) => {
+  if (!req.user) return next(unauthorized());
+  if (req.user.emailVerified || req.user.isPlatformAdmin) return next();
+  if (!mailEnabled() && !isProd) return next();
+  next(new AppError(403, "EMAIL_NOT_VERIFIED", "Confirm your email address first. We sent you a link when you signed up."));
+};
 
 export const requirePlatformAdmin: RequestHandler = (req, _res, next) => {
   if (!req.user) return next(unauthorized());

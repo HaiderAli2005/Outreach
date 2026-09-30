@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
+import { dirFor } from "@/lib/rtl";
 import { compact, n0 } from "@/lib/format";
 import { AUDIENCE_ICON } from "./Rail";
 import { Counter, Typewriter, arrive, trail, useDock, useReducedMotion, useReveal } from "./motion";
@@ -18,12 +19,14 @@ const DOCK_KEY: Record<PhaseKey, string | null> = {
   market: "market",
   companies: "market",
   people: "market",
-  emails: null,
+  emails: "sequence",
 };
 
 export const DWELL_MS = 1200;
 /** The business panel carries the most text, so it stays a little longer once it has filled in. */
 export const BUSINESS_DWELL_MS = 2000;
+/** Time to read the finished email before it joins the rail and the overview opens. */
+export const EMAIL_DWELL_MS = 2500;
 /** How far into a dock flight the next panel starts to come in. */
 const HANDOFF_MS = 140;
 const LANG: Record<string, string> = { en: "English", de: "German", fr: "French", es: "Spanish", nl: "Dutch", it: "Italian", pt: "Portuguese", ur: "Urdu", ar: "Arabic" };
@@ -139,8 +142,8 @@ function Business({ run }: { run: RunState }) {
           <>
             <div className="biz-top lv-arrive">
               <div>
-                <h2 className="biz-name">{s.company}</h2>
-                <p className="biz-line">{s.oneLiner}</p>
+                <h2 className="biz-name" dir="auto">{s.company}</h2>
+                <p className="biz-line" dir="auto">{s.oneLiner}</p>
               </div>
               {chips.length ? (
                 <div className="biz-chips">
@@ -155,7 +158,7 @@ function Business({ run }: { run: RunState }) {
                 <h3>What you offer</h3>
                 <div className="biz-tags">
                   {s.offerings.map((o, i) => (
-                    <span key={o} {...arrive(i, s.offerings!.length)}>
+                    <span key={o} dir="auto" {...arrive(i, s.offerings!.length)}>
                       {o}
                     </span>
                   ))}
@@ -168,7 +171,7 @@ function Business({ run }: { run: RunState }) {
                 <ul className="biz-proof">
                   {s.proof.map((p, i) => (
                     <li key={p.text} {...arrive(i, s.proof!.length)}>
-                      <span>{p.text}</span>
+                      <span dir="auto">{p.text}</span>
                       <SourceChip src={p.source} />
                     </li>
                   ))}
@@ -252,12 +255,18 @@ function Audiences({ run, onSettled }: { run: RunState; onSettled: () => void })
               <Icon id={AUDIENCE_ICON[a.icon] ?? "users"} />
             </span>
             <div className="aud-body">
-              <h3>{a.name}</h3>
-              {a.why || a.description ? <p className="aud-why">{a.why || a.description}</p> : null}
+              <h3 dir="auto">{a.name}</h3>
+              {a.why || a.description ? (
+                <p className="aud-why" dir="auto">
+                  {a.why || a.description}
+                </p>
+              ) : null}
               {a.pains.length ? (
                 <ul className="aud-pains">
                   {a.pains.slice(0, 4).map((p) => (
-                    <li key={p}>{p}</li>
+                    <li key={p} dir="auto">
+                      {p}
+                    </li>
                   ))}
                 </ul>
               ) : null}
@@ -332,7 +341,7 @@ function Market({ run, onSettled }: { run: RunState; onSettled: () => void }) {
             const share = c?.total && c.reachable != null ? Math.min(1, c.reachable / c.total) : 0;
             return (
               <li key={a.id}>
-                <span className="mk-n">{a.name}</span>
+                <span className="mk-name">{a.name}</span>
                 <span className="mk-v">{c ? <Counter value={c.total} /> : <Sk w={60} h={16} />}</span>
                 <span className="mk-v muted">{c ? <Counter value={c.reachable} /> : <Sk w={50} h={16} />}</span>
                 <span className="mk-bar" aria-hidden="true">
@@ -473,7 +482,7 @@ function LeadCard({ lead, active, animate, onSelect, onReject, onFound }: { lead
           <b>
             {lead.firstName} {lead.lastMasked}
           </b>
-          <small>{[lead.title, lead.company].filter(Boolean).join(" · ")}</small>
+          <small dir="auto">{[lead.title, lead.company].filter(Boolean).join(" · ")}</small>
         </span>
       </button>
       <div className="lead-checks" aria-label="Finding the address">
@@ -515,6 +524,7 @@ export function EmailsPanel({
   sender,
   onSettled,
   dockRef,
+  language,
 }: {
   leads: Lead[];
   drafts: Draft[];
@@ -524,6 +534,8 @@ export function EmailsPanel({
   sender: string;
   onSettled?: () => void;
   dockRef?: (el: HTMLElement | null) => void;
+  /** The language the emails are written in. Right-to-left languages are shown right to left. */
+  language?: string | null;
 }) {
   const [rejected, setRejected] = useState<string[]>([]);
   const [undo, setUndo] = useState<Lead | null>(null);
@@ -600,7 +612,7 @@ export function EmailsPanel({
         </div>
         <div className="em-row em-subj">
           <span>Subject</span>
-          <span>
+          <span dir={dirFor(language)} lang={language ?? undefined}>
             {!draft || stage === "frame" || stage === "to" ? (
               <Sk w="60%" h={14} />
             ) : stage === "subject" ? (
@@ -610,7 +622,7 @@ export function EmailsPanel({
             )}
           </span>
         </div>
-        <div className="em-body">
+        <div className="em-body" dir={dirFor(language)} lang={language ?? undefined}>
           {!draft || stage === "frame" || stage === "to" || stage === "subject" ? (
             <div className="em-sk" aria-hidden="true">
               <Sk w="92%" />
@@ -776,17 +788,13 @@ export function LiveAnalysis({
       }, reduced ? 0 : 140);
       return () => clearTimeout(t);
     }
-    if (phase === "emails") {
-      if (settledAt != null) finish();
-      return;
-    }
     if (!complete) {
       completeAt.current = null;
       return;
     }
     // The dwell counts from the moment the content is complete, so a panel that filled late is still read before it leaves.
     completeAt.current ??= Date.now();
-    const hold = (phase === "business" ? BUSINESS_DWELL_MS : DWELL_MS) - (Date.now() - completeAt.current);
+    const hold = (phase === "business" ? BUSINESS_DWELL_MS : phase === "emails" ? EMAIL_DWELL_MS : DWELL_MS) - (Date.now() - completeAt.current);
     const wait = Math.max(0, hold, DWELL_MS - (Date.now() - shownAt.current));
     const t = setTimeout(async () => {
       setLeaving(true);
@@ -818,6 +826,8 @@ export function LiveAnalysis({
 
   const key = DOCK_KEY[phase];
   const companies = run.companies.filter((c) => !audience || c.audienceId === audience);
+  // The free people search often returns only company names; then show who matches there instead of empty columns.
+  const richCompanies = companies.some((c) => c.domain || c.country || c.employees);
   const people = run.people.filter((p) => !audience || p.audienceId === audience);
 
   let body: React.ReactNode;
@@ -832,8 +842,12 @@ export function LiveAnalysis({
         sub={`Examples from a sample of ${size?.sampleSize ?? run.people.length} matching people, not a count of every company.`}
         rows={companies}
         ready={st.size === "done"}
-        head={["Company", "Domain", "Country", "Size"]}
-        render={(c) => [<b key="n">{c.name}</b>, <span key="d" className="lv-mono">{c.domain ?? ""}</span>, c.country ?? "", c.employees ? `${compact(c.employees)} staff` : sizeBand(null)]}
+        head={richCompanies ? ["Company", "Domain", "Country", "Size"] : ["Company", "Who matches there", "People", ""]}
+        render={(c) =>
+          richCompanies
+            ? [<b key="n">{c.name}</b>, <span key="d" className="lv-mono">{c.domain ?? ""}</span>, c.country ?? "", c.employees ? `${compact(c.employees)} staff` : sizeBand(null)]
+            : [<b key="n">{c.name}</b>, (c.titles ?? []).join(", "), String(c.people ?? 1), ""]
+        }
         onSettled={onSettled}
       />
     );
@@ -877,6 +891,7 @@ export function LiveAnalysis({
           brand={brand}
           sender={sender}
           onSettled={onSettled}
+          language={(run.summaries.analyse as AnalyseSummary | undefined)?.language ?? null}
         />
       </>
     );

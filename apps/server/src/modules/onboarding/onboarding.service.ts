@@ -14,9 +14,11 @@ import { lintEmail } from "../../domain/personalize.js";
 import { provisionCampaign } from "../../domain/provisioning.js";
 import { features } from "../../config/env.js";
 import { domainIdeas, isDomainTaken, lookalikes } from "./domainIdeas.js";
-import { ALLOWED_COMPANY_SIZES, ANALYSIS_SYSTEM, PROMPT_VERSION, analysisUserPrompt, type PromptPage, type Signals } from "./analysisPrompt.js";
+import { ALLOWED_COMPANY_SIZES, ANALYSIS_SCHEMA, ANALYSIS_SYSTEM, PROMPT_VERSION, analysisUserPrompt, type PromptPage, type Signals } from "./analysisPrompt.js";
+import { groundAnalysis, numbersIn, sourceFor } from "./grounding.js";
 import {
   KEYWORD_PROBLEM_MESSAGE,
+  customerWarning,
   keywordProblem,
   kwNorm,
   normalizeDomain,
@@ -28,6 +30,7 @@ import {
 } from "./analysisValidate.js";
 import { extractSignals } from "./signals.js";
 import { logger } from "../../lib/logger.js";
+import { logSystem } from "../../domain/systemLog.js";
 import { env } from "../../config/env.js";
 
 export interface Icp {
@@ -240,7 +243,6 @@ export function apolloFiltersFromIcp(icp: Icp): Record<string, unknown> {
   };
 }
 
-const slugTech = (t: string) => t.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 
 export function filtersForGroups(groups: BuyerGroup[]): Record<string, unknown> {
   const union = (pick: (g: BuyerGroup) => string[]) => [...new Set(groups.flatMap(pick))];
@@ -252,8 +254,8 @@ export function filtersForGroups(groups: BuyerGroup[]): Record<string, unknown> 
     person_locations: union((g) => g.regions),
     q_organization_keyword_tags: union((g) => g.keywords),
   };
-  const tech = union((g) => g.technologies).map(slugTech).filter(Boolean);
-  if (tech.length) f.currently_using_any_of_technology_uids = tech;
+  // Technologies stay on the audience card but are not sent: Apollo needs its own technology ids, and a guessed one
+  // silently returns zero people.
   const hiring = union((g) => g.signals.hiringForTitles);
   if (hiring.length) f.q_organization_job_titles = hiring;
   if (groups.length === 1) {
@@ -282,7 +284,8 @@ function analysisSummary(o: Onboarding) {
     confidence: a.confidence,
     lowConfidence: a.lowConfidence,
     brandDetail: a.brandDetail,
-    warning: a.warning,
+    // Older analyses may hold notes the model wrote for itself; only a customer-facing warning is shown.
+    warning: customerWarning(a.warning),
     repairsMade: a.repairsMade,
   };
 }
@@ -448,16 +451,20 @@ const pathOf = (source: string, domain: string) => {
 };
 
 function factsFromBrand(bd: BrandDetail, o: Onboarding, answered?: { sell: string; who: string; regions: string[] }): Fact[] {
-  const firstSource = (bd.evidence[0]?.source && pathOf(bd.evidence[0].source, o.domain)) || "/";
+  // A fact only points at a page when a checked piece of evidence from that page says it; otherwise it is a summary of the site.
+  const from = (value: string) => {
+    const src = sourceFor(value, bd.evidence);
+    return src ? pathOf(src, o.domain) : "from your site";
+  };
   const facts: Fact[] = [{ key: "company", label: FACT_LABELS.company, value: bd.company_name || o.brand, source: bd.company_name ? "from your site" : "from your domain" }];
   if (answered) {
     facts.push({ key: "sell", label: FACT_LABELS.sell, value: answered.sell, source: "from your answers" });
     facts.push({ key: "who", label: FACT_LABELS.who, value: answered.who, source: "from your answers" });
     facts.push({ key: "where", label: FACT_LABELS.where, value: answered.regions.join(", "), source: "from your answers" });
   } else {
-    if (bd.one_liner) facts.push({ key: "sell", label: FACT_LABELS.sell, value: bd.one_liner, source: firstSource });
-    if (bd.customer_types.length) facts.push({ key: "who", label: FACT_LABELS.who, value: bd.customer_types.join(", "), source: firstSource });
-    if (bd.geographies.length) facts.push({ key: "where", label: FACT_LABELS.where, value: bd.geographies.join(", "), source: firstSource });
+    if (bd.one_liner) facts.push({ key: "sell", label: FACT_LABELS.sell, value: bd.one_liner, source: from(bd.one_liner) });
+    if (bd.customer_types.length) facts.push({ key: "who", label: FACT_LABELS.who, value: bd.customer_types.join(", "), source: from(bd.customer_types.join(" ")) });
+    if (bd.geographies.length) facts.push({ key: "where", label: FACT_LABELS.where, value: bd.geographies.join(", "), source: from(bd.geographies.join(" ")) });
   }
   const proof = bd.proof[0];
   if (proof) facts.push({ key: "proof", label: FACT_LABELS.proof, value: proof.text, source: pathOf(proof.source, o.domain) });
@@ -512,7 +519,9 @@ async function saveAnalysis(orgId: string, o: Onboarding, facts: Fact[], groups:
 async function runAnalysis(orgId: string, domain: string, pages: PromptPage[], signals: Signals): Promise<{ analysis: Analysis; repairs: string[] }> {
   const ai = requireAi();
   const prompt = analysisUserPrompt({ domain, today: new Date().toISOString().slice(0, 10), pages, signals, searchResults: [] });
-  const opts = { system: ANALYSIS_SYSTEM, maxTokens: 6000, temperature: 0.2 };
+  // Reasoning budget included: the analysis reads up to 10 pages and checks its own work before answering.
+  // Low reasoning effort: measured the same quality here at a fraction of the wait, and the grounding check below does the policing.
+  const opts = { system: ANALYSIS_SYSTEM, maxTokens: 24_000, temperature: 0.2, effort: "low" as const, schema: ANALYSIS_SCHEMA, model: env.OPENAI_ANALYSIS_MODEL };
   let raw = await ai.generateJSON<Record<string, unknown>>(prompt, opts);
   await addUsage(orgId, "aiCalls");
   const repairs: string[] = [];
@@ -523,7 +532,9 @@ async function runAnalysis(orgId: string, domain: string, pages: PromptPage[], s
   }
   if (!raw) throw new Error("model output was not valid JSON twice");
   const checked = validateAnalysis(raw, domain, signals.language, signals.country);
-  return { analysis: checked.analysis, repairs: [...repairs, ...checked.repairs] };
+  // Then every fact is checked against the pages that were read, so nothing the site doesn't say reaches the user.
+  const grounded = groundAnalysis(checked.analysis, pages, signals, domain);
+  return { analysis: grounded.analysis, repairs: [...repairs, ...checked.repairs, ...grounded.repairs] };
 }
 
 export function aiErrorReason(err: unknown): string {
@@ -710,6 +721,9 @@ export interface MarketCompany {
   country: string | null;
   employees: number | null;
   description: string | null;
+  /** Matching people at this company inside the sample, and their titles. */
+  people: number;
+  titles: string[];
 }
 
 export interface MarketPerson {
@@ -761,10 +775,45 @@ export function companiesFrom(people: ApolloPerson[], audienceId: string): Marke
     if (!name) continue;
     const domain = normalizeDomain(org?.primary_domain ?? org?.website_url ?? "") || null;
     const key = domain ?? name.toLowerCase();
-    if (out.has(key)) continue;
-    out.set(key, { audienceId, name, domain, country: org?.country ?? null, employees: org?.estimated_num_employees ?? null, description: org?.short_description ?? null });
+    const seen = out.get(key);
+    if (seen) {
+      seen.people++;
+      if (p.title && !seen.titles.includes(p.title) && seen.titles.length < 3) seen.titles.push(p.title);
+      continue;
+    }
+    out.set(key, {
+      audienceId,
+      name,
+      domain,
+      country: org?.country ?? null,
+      employees: org?.estimated_num_employees ?? null,
+      description: org?.short_description ?? null,
+      people: 1,
+      titles: p.title ? [p.title] : [],
+    });
   }
-  return [...out.values()];
+  // Companies with more matching people first: they are the strongest examples.
+  return [...out.values()].sort((a, b) => b.people - a.people);
+}
+
+/**
+ * The people shown before payment: a few from every audience, people with an email on file first,
+ * interleaved so one large audience never fills the whole list.
+ */
+export function pickProspects(people: MarketPerson[], perAudience = 4, max = 12): MarketPerson[] {
+  const byAudience = new Map<string, MarketPerson[]>();
+  for (const p of people) {
+    if (!p.firstName) continue;
+    const list = byAudience.get(p.audienceId) ?? [];
+    list.push(p);
+    byAudience.set(p.audienceId, list);
+  }
+  const queues = [...byAudience.values()].map((list) => [...list.filter((p) => p.hasEmail), ...list.filter((p) => !p.hasEmail)].slice(0, perAudience));
+  const out: MarketPerson[] = [];
+  for (let round = 0; out.length < max && queues.some((q) => q.length > round); round++) {
+    for (const q of queues) if (q[round] && out.length < max) out.push(q[round]);
+  }
+  return out;
 }
 
 function orgFilters(g: BuyerGroup): Record<string, unknown> {
@@ -852,7 +901,6 @@ export async function market(orgId: string, refresh = false, hooks: MarketHooks 
       });
     }
     const sum = (k: "count" | "verified") => (counts.every((c) => c[k] !== null) ? counts.reduce((s, c) => s + (c[k] ?? 0), 0) : null);
-    const step = Math.max(1, Math.floor(sample.length / 12));
     const view: MarketView = {
       available: true,
       reason: null,
@@ -865,16 +913,16 @@ export async function market(orgId: string, refresh = false, hooks: MarketHooks 
         bySize: SIZE_BUCKETS.map(([label]) => [label, sample.filter((p) => sizeOf(p.organization?.estimated_num_employees) === label).length] as [string, number]).filter(([, n]) => n > 0),
         bySeniority: tally(sample.map(seniorityOf), 3),
       },
-      prospects: sample
-        .map((p, i) => personOf(p, sampleGroup[i]))
-        .filter((_, i) => i % step === 0)
-        .slice(0, 12),
+      prospects: pickProspects(sample.map((p, i) => personOf(p, sampleGroup[i]))),
       companies: companies.slice(0, 60),
       checkedAt: new Date().toISOString(),
     };
     await prisma.onboarding.update({ where: { organizationId: orgId }, data: { market: { ...view, key } as unknown as Prisma.InputJsonValue } });
     return view;
-  } catch {
+  } catch (err) {
+    const e = err as { status?: number; message?: string; body?: unknown };
+    logger.warn({ orgId, status: e.status, err: e.message, body: e.body }, "market lookup failed");
+    await logSystem(orgId, "WARN", "lead-search", `The market lookup failed: ${e.status ? `HTTP ${e.status} ` : ""}${(e.message ?? "").slice(0, 200)}`);
     return empty("lookup-failed");
   }
 }
@@ -935,9 +983,53 @@ export async function keywordCounts(orgId: string, groupId: string): Promise<Key
     const counts: (number | null)[] = [];
     for (const k of g.keywords) counts.push(await cachedCount(orgId, apollo, { ...base, q_organization_keyword_tags: [k] }));
     return view(null, baseline, counts);
-  } catch {
+  } catch (err) {
+    const e = err as { status?: number; message?: string };
+    logger.warn({ orgId, status: e.status, err: e.message }, "keyword counts failed");
     return view("lookup-failed");
   }
+}
+
+const EMAIL_SCHEMA = {
+  name: "email_sequence",
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["emails"],
+    properties: {
+      emails: { type: "array", items: { type: "object", additionalProperties: false, required: ["subject", "body"], properties: { subject: { type: "string" }, body: { type: "string" } } } },
+    },
+  },
+};
+const MERGE_TOKENS = new Set(["first_name", "company", "similar_company"]);
+
+/** Rule breaks a sample email can't ship with: numbers the sender never published, and merge tokens we can't fill. */
+export function emailProblems(emails: { subject?: string; body?: string }[], allowedText: string): string[] {
+  const allowed = allowedText.replace(/,/g, "");
+  const out = new Set<string>();
+  for (const e of emails) {
+    const text = `${e.subject ?? ""} ${e.body ?? ""}`;
+    for (const n of numbersIn(text.replace(/\{\{\w+\}\}/g, ""))) if (!allowed.includes(n)) out.add(`"${n}" is not a number the sender published; remove it or use only numbers from the proof`);
+    for (const m of text.matchAll(/\{\{\s*(\w+)\s*\}\}/g)) if (!MERGE_TOKENS.has(m[1])) out.add(`{{${m[1]}}} is not an allowed merge token; use only {{first_name}}, {{company}} and {{similar_company}}`);
+  }
+  return [...out];
+}
+
+/** Drops sentences with invented numbers and unknown merge tokens. */
+export function cleanEmail(text: string, allowedText: string): string {
+  const allowed = allowedText.replace(/,/g, "");
+  return text
+    .replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k: string) => (MERGE_TOKENS.has(k) ? `{{${k}}}` : ""))
+    .split(/\n/)
+    .map((line) =>
+      (line.match(/[^.!?]+[.!?]*\s*/g) ?? [line])
+        .filter((sentence) => numbersIn(sentence.replace(/\{\{\w+\}\}/g, "")).every((n) => allowed.includes(n)))
+        .join("")
+        .trim(),
+    )
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export async function preview(orgId: string, hooks: { email?: (index: number, email: PreviewEmail) => void } = {}) {
@@ -947,32 +1039,55 @@ export async function preview(orgId: string, hooks: { email?: (index: number, em
   const groups = groupsOf(o).filter((g) => g.on);
   const icp = icpOf(o);
   const ai = requireAi();
-  const audience = groups.length
-    ? groups
-        .map(
-          (g) =>
-            `- ${g.name}: ${g.description || g.why} Why they buy: ${g.why || "n/a"} Pains: ${g.pains.join("; ") || "n/a"}. Goals: ${g.goals.join("; ") || "n/a"}. Likely objections: ${g.objections.join("; ") || "n/a"}. Titles: ${g.titles.join(", ")}.`,
-        )
-        .join("\n")
-    : `titles ${icp.titles.join(", ") || "decision makers"}; regions ${icp.regions.join(", ") || "any"}`;
-  const prompt = `Write a three step cold email sequence for ${o.brand} (${o.domain}).
+  // Written for the audience we'd run first: a sequence aimed at one buyer reads sharper than one blended across all of them.
+  const lead = [...groups].sort((a, b) => a.priority - b.priority)[0];
+  const bd = analysisOf(o)?.brandDetail;
+  const proof = [...(bd?.proof ?? []), ...(bd?.differentiators ?? [])].map((x) => x.text).filter(Boolean).slice(0, 4);
+  const offers = (bd?.offerings ?? []).slice(0, 4);
+  const who = lead
+    ? `${lead.name}: ${lead.description || lead.why}
+Titles: ${lead.titles.join(", ") || "decision makers"}
+Why they buy: ${lead.why || "n/a"}
+Pains: ${lead.pains.join("; ") || "n/a"}
+Goals: ${lead.goals.join("; ") || "n/a"}
+Likely objections: ${lead.objections.join("; ") || "n/a"}`
+    : `Titles ${icp.titles.join(", ") || "decision makers"}; regions ${icp.regions.join(", ") || "any"}`;
+  const prompt = `Write a three step cold email sequence from ${o.brand} (${o.domain}).
 
-WHAT THEY DO: ${o.summary}
-VALUE: ${settings.valueProp ?? ""}
-AUDIENCE:
-${audience}
+ABOUT THE SENDER
+What they do: ${o.summary}
+${offers.length ? `What they offer: ${offers.join("; ")}\n` : ""}${settings.valueProp ? `Value: ${settings.valueProp}\n` : ""}${proof.length ? `Proof from their own site (use at most one, in plain words, never add numbers that are not written here): ${proof.join(" | ")}\n` : ""}
+WHO RECEIVES IT
+${who}
+
+HOW TO WRITE IT
+Write like a sharp peer in the same industry, not a marketer. Short sentences, plain words, one idea per email.
+Open with the reader's world (their role, a pain they already feel). Never open with "I", "We", "My name", "Hope" or "I noticed".
+Email 1 (day 1): 50 to 80 words. Name one pain in the reader's words, say in one sentence what ${o.brand} does about it, add one piece of proof if you have it, and end with one easy question about interest, not a meeting request.
+Email 2 (day 3): 30 to 60 words. A different pain or angle, and the concrete outcome they would get.
+Email 3 (day 7): 20 to 40 words. A short, friendly last note that makes a one-word reply easy.
+Subject for email 1: 2 to 5 words, lowercase apart from names, no punctuation, no hype.
+Use the literal merge tokens {{first_name}} and {{company}} where the prospect's details go, and {{similar_company}} at most once.
+Never use: "just checking in", "circling back", "touch base", "reach out", "quick chat", "hope this finds you", "clutter your inbox", "game changer", "revolutionize", "streamline", exclamation marks or em-dashes.
+Plain text, no links, no invented customers, numbers or results, no sign-off (a signature is added).
 LANGUAGE: ${settings.language === "en" ? "English" : settings.language}.
-
-Use the literal merge tokens {{first_name}}, {{company}} and, at most once, {{similar_company}} where a real prospect's details will go.
-Email 1 (day 1): 50 to 90 words, a specific reason to talk tied to one pain point, one low-pressure question.
-Email 2 (day 3): 30 to 60 words, same thread, a different angle.
-Email 3 (day 7): 25 to 45 words, a polite last note that leaves the door open.
-Plain text, no links, no em-dashes, no invented customers or numbers, no sign-off (a signature is added).
 Return STRICT JSON: {"emails":[{"subject":"...","body":"..."},{"subject":"...","body":"..."},{"subject":"...","body":"..."}]}`;
-  const out = await ai.generateJSON<{ emails?: { subject?: string; body?: string }[] }>(prompt, { maxTokens: 900, temperature: 0.7 });
-  await addUsage(orgId, "aiCalls");
-  const emails = (out?.emails ?? []).slice(0, 3);
+  // Numbers the sender actually published. Anything else in an email would be invented.
+  const allowedText = [o.summary, settings.valueProp ?? "", ...offers, ...proof, who].join(" ");
+  let emails: { subject?: string; body?: string }[] = [];
+  let problems: string[] = [];
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const ask = attempt && problems.length ? `${prompt}\n\nYOUR LAST DRAFT BROKE THESE RULES, FIX THEM AND KEEP EVERYTHING ELSE:\n- ${problems.join("\n- ")}` : prompt;
+    const out = await ai.generateJSON<{ emails?: { subject?: string; body?: string }[] }>(ask, { maxTokens: 6000, temperature: 0.6, effort: "low", schema: EMAIL_SCHEMA, model: env.OPENAI_ANALYSIS_MODEL });
+    await addUsage(orgId, "aiCalls");
+    emails = (out?.emails ?? []).slice(0, 3);
+    if (emails.length < 3 || emails.some((e) => !e.body)) continue;
+    problems = emailProblems(emails, allowedText);
+    if (!problems.length) break;
+  }
   if (emails.length < 3 || emails.some((e) => !e.body)) throw upstream("AI preview", "the preview could not be written, please retry");
+  // Whatever still breaks the rules after a second try is cut rather than shown.
+  emails = emails.map((e) => ({ subject: cleanEmail(String(e.subject ?? ""), allowedText), body: cleanEmail(String(e.body ?? ""), allowedText) }));
   const meta: [string, string][] = [["Intro", "Day 1"], ["Follow up", "Day 3"], ["Last note", "Day 7"]];
   const previewEmails: PreviewEmail[] = emails.map((e, i) => ({
     tab: meta[i][0],
@@ -1086,7 +1201,8 @@ export async function launch(orgId: string) {
     } catch (err) {
       missing.push(`Sending could not be provisioned yet: ${(err as Error).message}`);
     }
-  } else if (!settings.smartleadMailboxIds.length) {
+  } else if (!settings.smartleadMailboxIds.length && !features.infraforge) {
+    // With Infraforge the inboxes are created, warmed and attached automatically, so there is nothing to ask for.
     missing.push("Connect your sending mailboxes in Settings → Sending so the campaign can start sending");
   }
   if (!features.ai) missing.push("AI personalization is not configured on this server");

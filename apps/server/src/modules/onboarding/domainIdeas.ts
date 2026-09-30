@@ -1,5 +1,7 @@
 import { isRegistered } from "../../integrations/site.js";
 import { TLD_PRICES_CENTS } from "../../config/plans.js";
+import { env } from "../../config/env.js";
+import { infraforge } from "../../integrations/infraforge.js";
 
 const FORMS: [string, string][] = [
   ["get", ""], ["try", ""], ["", "hq"], ["use", ""], ["meet", ""], ["", "mail"], ["hello", ""], ["go", ""], ["", "team"],
@@ -47,9 +49,26 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R
   return out;
 }
 
+/**
+ * With Infraforge configured, availability comes from the registrar we actually buy through, in one call,
+ * and premium-priced names count as unavailable. Otherwise (and in tests) the DNS/RDAP check is used.
+ */
+async function registrarAvailability(names: string[]): Promise<Map<string, boolean> | null> {
+  const api = checker === isRegistered ? infraforge() : null;
+  if (!api || !names.length) return null;
+  try {
+    const rows = await api.checkAvailability(names);
+    return new Map(rows.map((r) => [r.domain, r.available && (r.priceCents ?? 0) <= env.INFRAFORGE_MAX_DOMAIN_PRICE_CENTS]));
+  } catch {
+    return null;
+  }
+}
+
 export async function domainIdeas(primary: string, offset: number, limit: number): Promise<{ ideas: DomainIdea[]; total: number }> {
   const all = lookalikes(primary);
   const slice = all.slice(offset, offset + limit);
+  const reg = await registrarAvailability(slice.map((i) => i.name));
+  if (reg) return { ideas: slice.map((idea) => ({ ...idea, available: reg.has(idea.name) ? reg.get(idea.name)! : null })), total: all.length };
   const ideas = await mapLimit(slice, 8, async (idea) => {
     const registered = await checker(idea.name).catch(() => null);
     return { ...idea, available: registered === null ? null : !registered };
@@ -58,5 +77,7 @@ export async function domainIdeas(primary: string, offset: number, limit: number
 }
 
 export async function isDomainTaken(name: string): Promise<boolean> {
+  const reg = await registrarAvailability([name]);
+  if (reg?.has(name)) return !reg.get(name);
   return (await checker(name).catch(() => null)) === true;
 }

@@ -7,6 +7,7 @@ import { runReverifyJob } from "./reverify.js";
 import { runBatchNotifyJob } from "./batchNotify.js";
 import { runReportJob } from "./report.js";
 import { runBillingSyncJob } from "./billingSync.js";
+import { runInfraProvisionJob, runInfraReleaseJob } from "./infra.js";
 
 export interface JobDefinition {
   run: () => Promise<unknown>;
@@ -26,5 +27,7 @@ export const JOBS: Record<string, JobDefinition> = {
   "report-daily": { run: () => runReportJob("daily"), lockMs: 30 * 60_000, schedule: "0 18 * * 1-5", description: "Daily Slack summary" },
   "report-weekly": { run: () => runReportJob("weekly"), lockMs: 30 * 60_000, schedule: "0 8 * * 1", description: "Weekly Slack summary" },
   "report-monthly": { run: () => runReportJob("monthly"), lockMs: 30 * 60_000, schedule: "0 8 1 * *", description: "Monthly Slack summary" },
+  "infra-provision": { run: runInfraProvisionJob, lockMs: 15 * 60_000, schedule: "*/2 * * * *", description: "Register sending domains, create inboxes, connect them to Smartlead and ramp them up" },
+  "infra-release": { run: runInfraReleaseJob, lockMs: 30 * 60_000, schedule: "40 3 * * *", description: "Close inboxes and stop domain renewal for subscriptions that ended" },
   "billing-sync": { run: runBillingSyncJob, lockMs: 30 * 60_000, schedule: "0 * * * *", description: "Reconcile subscription status with Stripe" },
 };

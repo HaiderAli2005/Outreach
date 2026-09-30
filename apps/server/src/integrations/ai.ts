@@ -2,10 +2,27 @@ import OpenAI from "openai";
 import { env } from "../config/env.js";
 import { notConfigured } from "../lib/errors.js";
 
+export interface JsonSchema {
+  /** Short identifier the API reports back, letters, digits, _ and - only. */
+  name: string;
+  schema: Record<string, unknown>;
+}
+
 export interface AiOptions {
   system?: string;
+  /** For reasoning models this is the whole budget, thinking included, so give it room. */
   maxTokens?: number;
+  /** Ignored by reasoning models, which do not take a temperature. */
   temperature?: number;
+  /**
+   * The model for this call, or several separated by commas in order of preference
+   * ("gpt-6.1-sol,gpt-4.1"). A model the account can't use is skipped, and the default model is the last resort.
+   */
+  model?: string;
+  /** Reasoning effort for reasoning models. */
+  effort?: "low" | "medium" | "high";
+  /** Strict structured output: the answer is guaranteed to match this JSON schema. */
+  schema?: JsonSchema;
 }
 
 export interface AiClient {
@@ -13,7 +30,29 @@ export interface AiClient {
   generateText(prompt: string, opts?: AiOptions): Promise<string>;
 }
 
-const REASONING = /^(?:gpt-5|o[1-9])/i;
+/** gpt-5 and later, and the o-series, are reasoning models: no temperature, a completion budget that includes thinking. */
+export const isReasoningModel = (model: string) => /^(?:gpt-(?:[5-9]|\d{2})|o[1-9])/i.test(model);
+
+/** The chat completion request for one model. Exported so the shape can be tested without calling the API. */
+export function requestParams(prompt: string, opts: AiOptions & { model: string }, json: boolean, useSchema = true) {
+  const messages: { role: "system" | "user"; content: string }[] = [];
+  if (opts.system) messages.push({ role: "system", content: opts.system });
+  messages.push({ role: "user", content: prompt });
+  const reasoning = isReasoningModel(opts.model);
+  const format = !json
+    ? {}
+    : opts.schema && useSchema
+      ? { response_format: { type: "json_schema" as const, json_schema: { name: opts.schema.name, strict: true, schema: opts.schema.schema } } }
+      : { response_format: { type: "json_object" as const } };
+  return {
+    model: opts.model,
+    messages,
+    ...(reasoning
+      ? { max_completion_tokens: opts.maxTokens ?? 4000, ...(opts.effort ? { reasoning_effort: opts.effort } : {}) }
+      : { max_tokens: Math.min(opts.maxTokens ?? 900, 16_000), temperature: opts.temperature ?? 0.4 }),
+    ...format,
+  };
+}
 
 class OpenAiClient implements AiClient {
   private readonly client: OpenAI;
@@ -21,23 +60,56 @@ class OpenAiClient implements AiClient {
     this.client = new OpenAI({ apiKey });
   }
 
-  private params(prompt: string, opts: AiOptions, json: boolean) {
-    const messages: { role: "system" | "user"; content: string }[] = [];
-    if (opts.system) messages.push({ role: "system", content: opts.system });
-    messages.push({ role: "user", content: prompt });
-    const reasoning = REASONING.test(this.model);
-    return {
-      model: this.model,
-      messages,
-      ...(reasoning ? { max_completion_tokens: opts.maxTokens ?? 900 } : { max_tokens: opts.maxTokens ?? 900, temperature: opts.temperature ?? 0.4 }),
-      ...(json ? { response_format: { type: "json_object" as const } } : {}),
-    };
+  /** Models this account turned out not to have, so they are not asked again until restart. */
+  private readonly unavailable = new Set<string>();
+  /** Models that rejected strict schemas, so they get plain JSON mode instead. */
+  private readonly noSchema = new Set<string>();
+
+  private candidates(opts: AiOptions): string[] {
+    const wanted = (opts.model ?? "").split(",").map((m) => m.trim()).filter(Boolean);
+    return [...new Set([...wanted.filter((m) => !this.unavailable.has(m)), this.model])];
+  }
+
+  /** Tries each model in order; a model the account can't use is remembered and skipped. */
+  private async withFallback<R>(opts: AiOptions, call: (model: string) => Promise<R>): Promise<R> {
+    const list = this.candidates(opts);
+    let last: unknown;
+    for (const model of list) {
+      try {
+        return await call(model);
+      } catch (err) {
+        const e = err as { status?: number; code?: string; message?: string };
+        const missing = e.status === 404 || e.code === "model_not_found" || ((e.status === 400 || e.status === 403) && /model/i.test(e.message ?? "") && !/response_format|json_schema|schema/i.test(e.message ?? ""));
+        if (!missing || model === this.model) throw err;
+        this.unavailable.add(model);
+        last = err;
+      }
+    }
+    throw last;
+  }
+
+  private async complete(prompt: string, opts: AiOptions, model: string, json: boolean) {
+    const useSchema = !this.noSchema.has(model);
+    try {
+      return await this.client.chat.completions.create(requestParams(prompt, { ...opts, model }, json, useSchema) as OpenAI.Chat.ChatCompletionCreateParamsNonStreaming);
+    } catch (err) {
+      const e = err as { status?: number; message?: string };
+      // Older models without strict schemas still answer in plain JSON mode; the validator checks the shape after.
+      if (json && opts.schema && useSchema && e.status === 400 && /response_format|json_schema|schema/i.test(e.message ?? "")) {
+        this.noSchema.add(model);
+        return this.client.chat.completions.create(requestParams(prompt, { ...opts, model }, json, false) as OpenAI.Chat.ChatCompletionCreateParamsNonStreaming);
+      }
+      throw err;
+    }
   }
 
   async generateJSON<T>(prompt: string, opts: AiOptions = {}): Promise<T | null> {
-    const res = await this.client.chat.completions.create(this.params(prompt, opts, true));
-    const text = String(res.choices?.[0]?.message?.content ?? "").trim();
-    if (!text) throw new Error(`empty AI completion (${res.choices?.[0]?.finish_reason ?? "unknown"})`);
+    const res = await this.withFallback(opts, (model) => this.complete(prompt, opts, model, true));
+    const choice = res.choices?.[0];
+    const refusal = (choice?.message as { refusal?: string | null } | undefined)?.refusal;
+    if (refusal) throw new Error(`the AI declined: ${refusal.slice(0, 160)}`);
+    const text = String(choice?.message?.content ?? "").trim();
+    if (!text) throw new Error(`empty AI completion (${choice?.finish_reason ?? "unknown"})`);
     try {
       return JSON.parse(text) as T;
     } catch {
@@ -46,7 +118,7 @@ class OpenAiClient implements AiClient {
   }
 
   async generateText(prompt: string, opts: AiOptions = {}): Promise<string> {
-    const res = await this.client.chat.completions.create(this.params(prompt, opts, false));
+    const res = await this.withFallback(opts, (model) => this.complete(prompt, opts, model, false));
     return String(res.choices?.[0]?.message?.content ?? "").trim();
   }
 }

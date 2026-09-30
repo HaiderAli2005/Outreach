@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { prisma } from "../../lib/prisma.js";
 import { notFound } from "../../lib/errors.js";
 import { CAMPAIGN_START, FAST_START } from "../../config/plans.js";
+import { features } from "../../config/env.js";
 import { keepAlive, sseHeaders, sseWrite } from "./events.js";
 
 export const PROVISION_STEPS = ["buy_domains", "dns", "mailboxes", "warmup", "campaign"] as const;
@@ -22,38 +23,75 @@ export async function provisioningChecklist(orgId: string): Promise<{ paid: bool
   const [o, sub, domains, boxes] = await Promise.all([
     prisma.onboarding.findUnique({ where: { organizationId: orgId }, select: { warmupDays: true, fastStart: true } }),
     prisma.subscription.findUnique({ where: { organizationId: orgId }, select: { status: true } }),
-    prisma.sendingDomain.findMany({ where: { organizationId: orgId }, orderBy: { createdAt: "asc" }, select: { name: true, status: true } }),
-    prisma.mailbox.findMany({ where: { organizationId: orgId }, select: { status: true } }),
+    prisma.sendingDomain.findMany({ where: { organizationId: orgId }, orderBy: { createdAt: "asc" }, select: { name: true, status: true, dnsVerifiedAt: true, prewarmed: true } }),
+    prisma.mailbox.findMany({ where: { organizationId: orgId }, select: { status: true, warmupDays: true, warmupStartedAt: true } }),
   ]);
   const paid = !!sub && PAID.includes(sub.status);
   const fast = !!o?.fastStart;
   const first = fast ? FAST_START.days : o?.warmupDays ?? 21;
   const lo = fast ? FAST_START.lo : CAMPAIGN_START.lo;
   const hi = fast ? FAST_START.hi : CAMPAIGN_START.hi;
-  const registered = domains.length > 0 && domains.every((d) => d.status === "REGISTERED");
-  const boxesReady = boxes.length > 0 && boxes.every((m) => m.status === "WARMING" || m.status === "ACTIVE");
-  const boxesActive = boxes.length > 0 && boxes.every((m) => m.status === "ACTIVE");
+  const n = (xs: { status: string }[], ...st: string[]) => xs.filter((x) => st.includes(x.status)).length;
+
+  const regCount = n(domains, "REGISTERED");
+  const registered = domains.length > 0 && regCount === domains.length;
+  const failed = n(domains, "FAILED");
+  const queued = n(domains, "PENDING_REGISTRATION");
+  const withRegistrar = n(domains, "REGISTERING");
+  const verified = domains.filter((d) => d.status === "REGISTERED" && (d.dnsVerifiedAt || d.prewarmed)).length;
+  const dnsDone = registered && (!features.infraforge || verified === domains.length);
+
+  const ready = n(boxes, "WARMING", "ACTIVE");
+  const boxesReady = boxes.length > 0 && ready === boxes.length;
+  const boxesActive = boxes.length > 0 && n(boxes, "ACTIVE") === boxes.length;
+  const boxErrors = n(boxes, "ERROR");
+  const creating = n(boxes, "CREATING", "CONNECTING");
+
+  const started = boxes.filter((m) => m.status === "WARMING" && m.warmupStartedAt).map((m) => m.warmupStartedAt!.getTime() + m.warmupDays * 86_400_000);
+  const daysLeft = started.length ? Math.max(0, Math.ceil((Math.max(...started) - Date.now()) / 86_400_000)) : null;
+
   const names = domains.slice(0, 2).map((d) => d.name).join(", ") + (domains.length > 2 ? ` +${domains.length - 2}` : "");
-  const pending = domains.filter((d) => d.status === "PENDING_REGISTRATION").length;
-  const failed = domains.filter((d) => d.status === "FAILED").length;
   const rows: ChecklistRow[] = [
     {
       step: "buy_domains",
       label: `Registering ${domains.length} domains`,
-      detail: registered ? names : failed ? `${failed} need attention` : pending ? `${pending} queued for registration` : "Waiting for payment",
+      detail: registered
+        ? names
+        : failed
+          ? `${failed} need attention, our team is on it`
+          : regCount
+            ? `${regCount} of ${domains.length} registered`
+            : withRegistrar
+              ? `${withRegistrar} with the registrar`
+              : queued
+                ? `${queued} queued for registration`
+                : "Waiting for payment",
       state: registered ? "done" : paid ? "running" : "waiting",
     },
-    { step: "dns", label: "Publishing SPF, DKIM and DMARC", detail: registered ? `${domains.length * 4} records` : "After registration", state: registered ? "done" : "waiting" },
+    {
+      step: "dns",
+      label: "Publishing SPF, DKIM and DMARC",
+      detail: dnsDone ? `${domains.length * 4} records live` : regCount ? `${verified} of ${domains.length} domains checked` : "After registration",
+      state: dnsDone ? "done" : regCount ? "running" : "waiting",
+    },
     {
       step: "mailboxes",
       label: `Creating ${boxes.length} inboxes`,
-      detail: boxesReady ? `${boxes.length} inboxes ready` : boxes.some((m) => m.status === "PENDING") ? "Queued" : "After registration",
-      state: boxesReady ? "done" : registered ? "running" : "waiting",
+      detail: boxesReady
+        ? `${boxes.length} inboxes ready`
+        : boxErrors
+          ? `${ready} of ${boxes.length} ready, ${boxErrors} need attention`
+          : ready || creating
+            ? `${ready} of ${boxes.length} ready`
+            : boxes.some((m) => m.status === "PENDING")
+              ? "Queued"
+              : "After registration",
+      state: boxesReady ? "done" : regCount ? "running" : "waiting",
     },
     {
       step: "warmup",
       label: fast ? "Connecting pre-warmed inboxes" : "Warming up inboxes",
-      detail: boxesActive ? "Complete" : boxesReady ? `Running · ${first} days` : `Starts when inboxes are ready · ${first} days`,
+      detail: boxesActive ? "Complete" : boxesReady ? (daysLeft !== null ? `Running · ${daysLeft} day${daysLeft === 1 ? "" : "s"} left` : `Running · ${first} days`) : `Starts when inboxes are ready · ${first} days`,
       state: boxesActive ? "done" : boxesReady ? "running" : "waiting",
     },
     {

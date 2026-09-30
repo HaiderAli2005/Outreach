@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthFrame } from "@/components/auth/AuthFrame";
+import { Icon } from "@/components/ui/Icon";
 import { FullPageLoader } from "@/components/shell/session";
 import { useAppDispatch } from "@/store";
 import { sessionReceived } from "@/store/authSlice";
@@ -44,8 +45,8 @@ function Verify() {
   }, [token, n, confirm, dispatch]);
 
   return (
-    <AuthFrame>
-      <div className="au-step">
+    <AuthFrame exit={state === "failed"}>
+      <div className="au-step au-status">
         {state === "working" ? (
           <>
             <h1 className="au-h">Confirming your email</h1>
@@ -56,11 +57,27 @@ function Verify() {
           </>
         ) : state === "done" ? (
           <>
+            <span className="au-ok" aria-hidden="true">
+              <Icon id="check" />
+            </span>
             <h1 className="au-h">Email confirmed</h1>
-            <p className="au-p">{n ? "That's it. The screen where you signed up carries on by itself, so you can close this page." : "Your email is confirmed and you're signed in on this device."}</p>
-            <button type="button" className="au-btn" style={{ marginTop: 24 }} onClick={() => router.replace("/onboarding")}>
-              Continue here
-            </button>
+            {n ? (
+              <>
+                {/* Opened from the number-match email: the tab where they signed up has already moved on. */}
+                <p className="au-p">Your sign-up tab has moved on by itself, so you can close this one.</p>
+                <button type="button" className="au-alt" onClick={() => router.replace("/onboarding")}>
+                  Continue in this tab instead
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="au-p">You&apos;re signed in. Pick up your setup where you left off.</p>
+                <button type="button" className="au-btn" onClick={() => router.replace("/onboarding")}>
+                  Continue setup
+                  <Icon id="arr" />
+                </button>
+              </>
+            )}
           </>
         ) : (
           <>
@@ -73,8 +90,9 @@ function Verify() {
             ) : (
               <>
                 <p className="au-p">Sign in and we&apos;ll send you a new email.</p>
-                <Link className="au-btn" href="/signin" style={{ marginTop: 24 }}>
+                <Link className="au-btn" href="/signin">
                   Sign in
+                  <Icon id="arr" />
                 </Link>
               </>
             )}

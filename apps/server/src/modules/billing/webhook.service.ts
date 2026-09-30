@@ -1,4 +1,5 @@
 import type Stripe from "stripe";
+import { kickInfra } from "../../domain/infra.js";
 import type { PaymentStatus, Prisma, SubscriptionStatus } from "@prisma/client";
 import { prisma, isUniqueViolation } from "../../lib/prisma.js";
 import { badRequest } from "../../lib/errors.js";
@@ -108,6 +109,7 @@ async function onInvoicePaid(inv: Stripe.Invoice): Promise<void> {
       prisma.sendingDomain.updateMany({ where: { organizationId: orgId, status: "SELECTED" }, data: { status: "PENDING_REGISTRATION" } }),
       prisma.mailbox.updateMany({ where: { organizationId: orgId, status: "PLANNED" }, data: { status: "PENDING" } }),
     ]);
+    kickInfra(orgId);
   }
 }
 

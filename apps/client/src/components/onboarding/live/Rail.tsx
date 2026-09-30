@@ -59,19 +59,22 @@ function Favicon({ domain }: { domain: string }) {
   return <img src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`} alt="" width={14} height={14} referrerPolicy="no-referrer" loading="lazy" onError={() => setBroken(true)} />;
 }
 
-/** Short name of each card for its step heading in the rail. */
-const STEP_NAME: Record<string, string> = {
-  business: "business",
-  buyers: "buyers",
-  market: "market",
-  sequence: "first email",
-  volume: "volume",
-  domains: "domains",
-  inboxes: "inboxes",
-  setup: "setup",
-};
+/** The rail groups every decision under the three parts of the setup, in this order. */
+export const RAIL_STEPS: { title: string; keys: string[]; /** The row that closes the step. */ closes: string }[] = [
+  { title: "About your business", keys: ["business", "buyers"], closes: "buyers" },
+  { title: "Your free preview", keys: ["market", "prospects", "sequence", "confirmed"], closes: "confirmed" },
+  { title: "Your setup", keys: ["volume", "domains", "inboxes", "setup"], closes: "inboxes" },
+];
 
-function Card({
+function Tick({ className }: { className: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3.5 8.5l3 3 6-7" />
+    </svg>
+  );
+}
+
+function Row({
   c,
   state,
   current,
@@ -90,20 +93,17 @@ function Card({
   const [open, setOpen] = useState(false);
   const more = !!(c.chips?.length || c.list?.length || c.facts?.length || c.competitors?.length || c.audiences?.length);
   return (
-    <li className={`rc${state === "landing" ? " landing" : ""}${current ? " cur" : ""}`} ref={dock.target(c.key)} data-key={c.key}>
+    <li className={`rc${state === "landing" ? " landing" : ""}${current ? " cur" : ""}${open ? " open" : ""}`} ref={dock.target(c.key)} data-key={c.key}>
       <div className="rc-row">
-        <button type="button" className="rc-main" onClick={() => onOpen(c.step, c.key)} aria-label={`${c.title}: ${c.detail}. Open this step`}>
+        <button type="button" className="rc-main" onClick={() => onOpen(c.step, c.key)} aria-label={`${c.title}: ${c.detail}. Open this step`} title={c.detail}>
           <span className="rc-ic">
             <Icon id={c.icon} />
           </span>
           <span className="rc-txt">
-            <span className="rc-t">
-              <svg className="rc-tick" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M3.5 8.5l3 3 6-7" />
-              </svg>
-              {c.title}
+            <span className="rc-t">{c.title}</span>
+            <span className="rc-d" dir="auto">
+              {c.detail}
             </span>
-            <span className="rc-d">{c.detail}</span>
           </span>
         </button>
         {more ? (
@@ -111,6 +111,10 @@ function Card({
             <Icon id="chev" />
           </button>
         ) : null}
+        <span className="rc-done">
+          <Tick className="rc-tick" />
+          <span className="sr">Done</span>
+        </span>
       </div>
       {c.warn ? <p className="rc-warn">{c.warn}</p> : null}
       {open && more ? (
@@ -127,7 +131,7 @@ function Card({
               {c.list.map((x) => (
                 <li key={x.text} title={x.text}>
                   <Icon id={x.icon} />
-                  <span>{x.text}</span>
+                  <span dir="auto">{x.text}</span>
                 </li>
               ))}
             </ul>
@@ -138,7 +142,7 @@ function Card({
                 <li key={a.id}>
                   <button type="button" title={a.name} aria-pressed={selected === a.id} onClick={() => onSelect(selected === a.id ? null : a.id)}>
                     <Icon id={a.icon} />
-                    <span>{a.name}</span>
+                    <span dir="auto">{a.name}</span>
                     <b>{a.count != null ? compact(a.count) : ""}</b>
                   </button>
                 </li>
@@ -149,7 +153,7 @@ function Card({
             <ul className="rc-facts">
               {c.facts.map((f) => (
                 <li key={f.text}>
-                  <span>{f.text}</span>
+                  <span dir="auto">{f.text}</span>
                   {f.source ? <small>{f.source.startsWith("/") ? `found on ${f.source}` : f.source}</small> : null}
                 </li>
               ))}
@@ -260,19 +264,32 @@ export function Rail({
         </p>
         {visible.length ? (
           <ol className="rc-steps">
-            {visible.map(({ c, phase }, i) => (
-              <li key={c.key} className={`rc-step${phase === "landing" ? " landing" : ""}`}>
-                <p className="rc-gh">
-                  <svg viewBox="0 0 16 16" aria-hidden="true">
-                    <path d="M3.5 8.5l3 3 6-7" />
-                  </svg>
-                  step {i + 1} · {STEP_NAME[c.key] ?? c.title.toLowerCase()}
-                </p>
-                <ol className="rc-list-wrap">
-                  <Card c={c} state={phase === "landing" ? "landing" : "shown"} current={active.has(c.key)} selected={selected} onSelect={onSelect} onOpen={(s, k) => (setDrawer(false), onOpen(s, k))} />
-                </ol>
-              </li>
-            ))}
+            {RAIL_STEPS.map((g, i) => {
+              const rows = g.keys.map((k) => visible.find((v) => v.c.key === k)).filter((v): v is (typeof visible)[number] => !!v);
+              if (!rows.length) return null;
+              const shown = rows.filter((r) => r.phase !== "landing");
+              // A step is complete once its last decision is in, or once a later step has started.
+              const later = RAIL_STEPS.slice(i + 1).some((n) => n.keys.some((k) => visible.some((v) => v.c.key === k && v.phase !== "landing")));
+              const done = shown.some((r) => r.c.key === g.closes) || later;
+              return (
+                <li key={g.title} className={`rc-step${done ? " done" : ""}${shown.length ? "" : " landing"}`}>
+                  <div className="rc-gh">
+                    <span className="rc-gh-t">
+                      <span>
+                        step {i + 1} · {g.title.toLowerCase()}
+                      </span>
+                      {done ? <Tick className="rc-gh-tick" /> : <span className="rc-gh-live" aria-hidden="true" />}
+                    </span>
+                    <span className="sr">{done ? "Step complete" : "In progress"}</span>
+                  </div>
+                  <ol className="rc-list-wrap">
+                    {rows.map(({ c, phase }) => (
+                      <Row key={c.key} c={c} state={phase === "landing" ? "landing" : "shown"} current={active.has(c.key)} selected={selected} onSelect={onSelect} onOpen={(s, k) => (setDrawer(false), onOpen(s, k))} />
+                    ))}
+                  </ol>
+                </li>
+              );
+            })}
           </ol>
         ) : (
           <p className="lv-rail-empty">Each decision lands here once it&apos;s made.</p>

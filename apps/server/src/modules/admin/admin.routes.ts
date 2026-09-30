@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuth, requirePlatformAdmin } from "../../middleware/auth.js";
 import * as c from "./admin.controller.js";
+import * as infra from "./infra.admin.js";
 
 export const adminRouter = Router();
 adminRouter.use(requireAuth, requirePlatformAdmin);
@@ -15,3 +16,7 @@ adminRouter.get("/payments", c.payments);
 adminRouter.post("/payments/:id/refund", c.refund);
 adminRouter.get("/webhook-events", c.webhookEvents);
 adminRouter.get("/system-logs", c.systemLogs);
+adminRouter.get("/infrastructure", infra.infraOverview);
+adminRouter.post("/infrastructure/retry", infra.infraRetry);
+adminRouter.post("/infrastructure/resume", infra.infraResume);
+adminRouter.post("/infrastructure/run", infra.infraRun);

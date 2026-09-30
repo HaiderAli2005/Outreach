@@ -707,3 +707,27 @@ a.obh-exit{text-decoration:none}
 #onboard .kw-warn{color:#E9A23B}
 #onboard .kw-msg{color:#F08A7E}
 @media (max-width:760px){#onboard .bg-meta .bg-kw{grid-template-columns:1fr;gap:8px}#onboard .kw{height:32px}#onboard .kw-x{width:28px;height:28px}#onboard .kw-in,#onboard .kw-in:focus{width:120px;height:32px}}
+/* Buttons follow the pill shape of the navigation bar they sit under. */
+#onboard .obh-exit,#onboard .au-btn{border-radius:999px}
+/* Status screens (email confirmed, link failed): one message, one clear action. */
+#onboard .au-status > :first-child{margin-top:0}
+#onboard .au-status .au-btn{width:100%;margin-top:24px;padding:0 24px}
+#onboard .au-ok{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;color:#7FD1A0;background:rgba(127,209,160,.1);box-shadow:inset 0 0 0 1px rgba(127,209,160,.28)}
+#onboard .au-ok svg{width:20px;height:20px}
+#onboard .au-ok + .au-h{margin-top:18px}
+#onboard .au-alt{display:inline-flex;align-items:center;height:40px;margin-top:18px;padding:0 16px;border:0;border-radius:999px;background:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);font:500 14px var(--f-body);color:#E5E0DA;cursor:pointer;transition:background .2s,color .2s}
+#onboard .au-alt:hover{background:rgba(255,255,255,.05);color:#F2EEE7}
+#onboard .au-alt:focus-visible,#onboard .au-btn:focus-visible{outline:2px solid #D4AE72;outline-offset:2px}
+
+/* Blue status chips were unreadable (their colour pointed at a background token). The landing hero keeps its look. */
+.chip-s.b{color:#E6D3B3}
+#landing .hero .chip-s.b{color:var(--gold-soft)}
+/* Admin: infrastructure distribution */
+.inf-dist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 40px;margin-top:14px}
+.inf-dist h4{margin:0 0 6px;font:600 13px var(--f-body);color:var(--ink-3)}
+.inf-row{display:grid;grid-template-columns:150px minmax(0,1fr) 44px;align-items:center;gap:14px;padding:8px 0;border-top:1px solid var(--hair)}
+.inf-row .chip-s{justify-self:start}
+.inf-row b{text-align:right;font:600 14px var(--f-body);color:var(--ink)}
+.inf-bar{height:6px;border-radius:6px;background:rgba(255,255,255,.05);overflow:hidden}
+.inf-bar i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#A67B5B,#E2C28C);transition:width .6s var(--ease-out)}
+@media (max-width:760px){.inf-dist{grid-template-columns:1fr}.inf-row{grid-template-columns:130px minmax(0,1fr) 36px}}

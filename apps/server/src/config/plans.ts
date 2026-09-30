@@ -2,6 +2,8 @@ import { env } from "./env.js";
 
 export const SENDS_PER_WARM_INBOX = 40;
 export const WARMUP_START_PER_INBOX = 10;
+/** Smartlead warmup for new inboxes: up to 20 warmup emails a day, rising by 2 a day, with 30% replied to. */
+export const WARMUP_SETTINGS = { maxPerDay: 20, rampup: 2, replyRate: 30 } as const;
 export const CAMPAIGN_START = { lo: 10, hi: 15, rampDays: 14 } as const;
 export const FAST_START = { days: 3, lo: 15, hi: 20, rampDays: 7 } as const;
 export const INBOX_FAST_PRICE_CENTS: number | null = env.INBOX_FAST_PRICE_CENTS ?? null;

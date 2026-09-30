@@ -1,6 +1,7 @@
 import { createApi, fetchBaseQuery, type BaseQueryFn, type FetchArgs, type FetchBaseQueryError } from "@reduxjs/toolkit/query/react";
 import { sessionReceived, signedOut, rememberedOrg } from "./authSlice";
 import type {
+  InfraOverview,
   AutoReplyMetrics,
   AutopilotStatus,
   Batch,
@@ -460,6 +461,17 @@ export const api = createApi({
       transformResponse: unwrap,
       invalidatesTags: ["Admin"],
     }),
+    adminInfra: b.query<InfraOverview, void>({ query: () => "/admin/infrastructure", transformResponse: unwrap, providesTags: ["Admin"] }),
+    adminInfraRetry: b.mutation<unknown, { kind: "domain" | "mailbox"; id: string }>({
+      query: (body) => ({ url: "/admin/infrastructure/retry", method: "POST", body }),
+      transformResponse: unwrap,
+      invalidatesTags: ["Admin"],
+    }),
+    adminInfraResume: b.mutation<unknown, { orgId: string }>({
+      query: (body) => ({ url: "/admin/infrastructure/resume", method: "POST", body }),
+      transformResponse: unwrap,
+      invalidatesTags: ["Admin"],
+    }),
     adminRefund: b.mutation<unknown, { id: string; amountCents?: number; reason?: string }>({
       query: ({ id, ...body }) => ({ url: `/admin/payments/${id}/refund`, method: "POST", body }),
       transformResponse: unwrap,
@@ -559,4 +571,7 @@ export const {
   useAdminUpdateUserMutation,
   useAdminUpdateOrgMutation,
   useAdminRefundMutation,
+  useAdminInfraQuery,
+  useAdminInfraRetryMutation,
+  useAdminInfraResumeMutation,
 } = api;

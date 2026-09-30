@@ -228,7 +228,7 @@ export function DomainsStep({ draft, cat, t, patch, domain, summary }: Common & 
 
   return (
     <>
-      <h2 className="ob-h">Choose your sending domains.</h2>
+      <h2 className="ob-h">Choose your sending domains</h2>
       <p className="ob-p">
         Buy more than one so sending is spread out. Each one forwards visitors to <b>{domain}</b>, which never sends cold email itself. Domains are from {money(minTld)} a year each.
       </p>
@@ -404,7 +404,7 @@ export function InboxesStep({ draft, cat, t, patch, summary }: Common & { summar
 
   return (
     <>
-      <h2 className="ob-h">Set up your inboxes.</h2>
+      <h2 className="ob-h">Set up your inboxes</h2>
       <p className="ob-p">
         Up to {maxPer} inboxes per domain. Three is the sweet spot for reputation, and each inbox sends at most {perInbox} campaign emails a day once warm.
       </p>
@@ -572,7 +572,7 @@ export function PaymentStep({
   const signature = `${draft.volume}-${draft.picks.join(",")}-${t.inboxes}-${draft.fast}`;
   return (
     <>
-      <h2 className="ob-h">Review and pay.</h2>
+      <h2 className="ob-h">Review and pay</h2>
       <p className="ob-p">
         One payment sets everything up: <b>{t.picked.length} domains</b>,{" "}
         <b>

@@ -53,11 +53,27 @@ export function normalizePerson(p: ApolloPerson & { last_name_obfuscated?: strin
   return { ...p, last_name: p.last_name ?? p.last_name_obfuscated };
 }
 
+/**
+ * Apollo rejects the whole search (422 "invalid parameters") when a filter is an empty list, so empty filters are dropped:
+ * an audience with no company sizes simply means any size.
+ */
+export function compactFilters<T extends Record<string, unknown>>(filters: T): T {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(filters)) {
+    if (v === undefined || v === null || v === "") continue;
+    if (Array.isArray(v) && !v.length) continue;
+    if (typeof v === "object" && !Array.isArray(v) && !Object.keys(v as object).length) continue;
+    out[k] = v;
+  }
+  return out as T;
+}
+
 export class ApolloClient implements ApolloApi {
   constructor(private readonly apiKey: string) {}
 
   private post<T>(path: string, body: unknown): Promise<T> {
-    return limiter.schedule(() => fetchJson<T>(`${BASE}${path}`, { method: "POST", body, headers: { "X-Api-Key": this.apiKey, "Cache-Control": "no-cache" } }));
+    const clean = body && typeof body === "object" && !Array.isArray(body) ? compactFilters(body as Record<string, unknown>) : body;
+    return limiter.schedule(() => fetchJson<T>(`${BASE}${path}`, { method: "POST", body: clean, headers: { "X-Api-Key": this.apiKey, "Cache-Control": "no-cache" } }));
   }
 
   async searchPeople(filters: Record<string, unknown>, page: number, perPage: number) {

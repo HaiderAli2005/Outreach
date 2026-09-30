@@ -6,6 +6,7 @@ import { Providers } from "./providers";
 import "./globals.css";
 import "./design-v2.css";
 import "./live.css";
+import "./landing.css";
 
 export const metadata: Metadata = {
   title: { default: "Aperture · Cold email infrastructure, set up by an agent", template: "%s · Aperture" },

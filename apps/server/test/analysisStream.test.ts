@@ -19,11 +19,11 @@ const ANALYSIS = {
     customer_types: ["Marketing agencies"],
     geographies: ["United Kingdom"],
     proof: [{ text: "Used by 200 agencies", source: "https://northwind.io/customers" }],
-    differentiators: [{ text: "Automatic reminders", source: "/services" }],
+    differentiators: [{ text: "Sends invoices and reminders", source: "/services" }],
     competitors: ["rival.com"],
     language: "en",
     confidence: 0.8,
-    evidence: [{ claim: "Sells invoicing", source: "/services" }],
+    evidence: [{ claim: "Invoicing for agencies in the UK", source: "/" }],
   },
   warning: null,
   target_audience: [
@@ -71,13 +71,16 @@ function fakes() {
   setApolloFactory(async () => apollo);
   setSiteReader(async (_d, hooks) => {
     const pages = [
-      { path: "/", title: "Northwind", text: "Invoicing for agencies in the UK", logos: ["Brightlabs"] },
+      { path: "/", title: "Northwind", text: "Invoicing for agencies in the UK, compared with rival.com", logos: ["Brightlabs"] },
       { path: "/services", title: "Services", text: "We send invoices and reminders" },
+      { path: "/customers", title: "Customers", text: "Used by 200 agencies" },
     ];
     hooks?.onRead?.("/");
     hooks?.onPage?.(pages[0]);
     hooks?.onRead?.("/services");
     hooks?.onPage?.(pages[1]);
+    hooks?.onRead?.("/customers");
+    hooks?.onPage?.(pages[2]);
     return { home: { title: "Northwind", description: null, lang: "en" }, pages };
   });
   return calls;
@@ -142,13 +145,15 @@ describe("analysis stream", () => {
     const kinds = new Set(items.map((i) => i.kind));
     expect([...kinds].sort()).toEqual(["audience", "company", "count", "draft", "fact", "keyword", "page", "person", "repair", "signal"]);
     expect(items.filter((i) => i.kind === "page")).toEqual([
-      { kind: "page", url: "/", words: 6 },
+      { kind: "page", url: "/", words: 9 },
       { kind: "page", url: "/services", words: 5 },
+      { kind: "page", url: "/customers", words: 4 },
     ]);
     expect(items).toContainEqual({ kind: "signal", label: "Language", value: "en", source: "page language" });
     expect(items).toContainEqual({ kind: "signal", label: "Customer logos", value: "Brightlabs", source: "logos on the site" });
     expect(items).toContainEqual({ kind: "fact", text: "Used by 200 agencies", source: "/customers" });
-    expect(items).toContainEqual({ kind: "fact", text: "Competes with rival.com", source: "/services" });
+    expect(items).toContainEqual({ kind: "fact", text: "Competes with rival.com", source: "from your site" });
+    expect(items).toContainEqual({ kind: "fact", text: "Invoicing for UK marketing agencies", source: "/" });
     expect(items).toContainEqual(expect.objectContaining({ kind: "audience", id: "seg_1", name: "UK agencies", icon: "agency" }));
     expect(items).toContainEqual({ kind: "keyword", audienceId: "seg_1", word: "design studio", suggestion: true });
     expect(items).toContainEqual({ kind: "count", audienceId: "seg_1", total: 1200, reachable: 400, companiesInSample: 2, companiesTotal: null });

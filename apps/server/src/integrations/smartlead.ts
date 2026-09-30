@@ -24,6 +24,22 @@ export interface SmartleadLead {
   custom_fields?: Record<string, string>;
 }
 
+export interface SmtpAccount {
+  fromName: string;
+  fromEmail: string;
+  username: string;
+  password: string;
+  smtpHost: string;
+  smtpPort: number;
+  imapHost: string;
+  imapPort: number;
+  maxPerDay: number;
+  /** Warmup emails a day at the start, rising by `warmupRampup` each day. */
+  warmupPerDay: number;
+  warmupRampup: number;
+  replyRate: number;
+}
+
 export interface SequenceStep {
   seq_number: number;
   seq_delay_details: { delay_in_days: number };
@@ -77,6 +93,10 @@ export interface SmartleadApi {
   messageHistory(campaignId: string, leadId: string): Promise<HistoryItem[]>;
   replyToThread(campaignId: string, args: ReplyArgs): Promise<void>;
   registerWebhook(campaignId: string, url: string): Promise<void>;
+  /** Adds (or, with `id`, updates) an SMTP sending account with warmup on. Returns the Smartlead account id. */
+  saveSmtpAccount(account: SmtpAccount, id?: number): Promise<{ id: number; smtpOk: boolean; imapOk: boolean }>;
+  findAccountByEmail(email: string): Promise<number | null>;
+  setAccountDailyLimit(id: number, maxPerDay: number): Promise<void>;
 }
 
 type Json = Record<string, unknown>;
@@ -207,6 +227,49 @@ export class SmartleadClient implements SmartleadApi {
       retries: 1,
       priority: 1,
     });
+  }
+
+  async saveSmtpAccount(a: SmtpAccount, id?: number): Promise<{ id: number; smtpOk: boolean; imapOk: boolean }> {
+    const r = await this.request<Json>("POST", "/email-accounts/save", {
+      body: {
+        ...(id ? { id } : {}),
+        from_name: a.fromName,
+        from_email: a.fromEmail,
+        user_name: a.username,
+        password: a.password,
+        smtp_host: a.smtpHost,
+        smtp_port: a.smtpPort,
+        imap_host: a.imapHost,
+        imap_port: a.imapPort,
+        max_email_per_day: a.maxPerDay,
+        warmup_enabled: true,
+        total_warmup_per_day: a.warmupPerDay,
+        daily_rampup: a.warmupRampup,
+        reply_rate_percentage: a.replyRate,
+      },
+      retries: 1,
+      timeoutMs: 90_000,
+    });
+    const d = ((r.data as Json | undefined) ?? r) as Json;
+    const got = Number(d.id ?? d.email_account_id ?? id);
+    if (!got) throw new Error(String(r.message ?? "Smartlead did not return an email account id"));
+    return { id: got, smtpOk: d.is_smtp_success !== false, imapOk: d.is_imap_success !== false };
+  }
+
+  async findAccountByEmail(email: string): Promise<number | null> {
+    const want = email.trim().toLowerCase();
+    for (let offset = 0; offset < 10_000; offset += 100) {
+      const r = await this.request<unknown>("GET", "/email-accounts/", { query: { offset, limit: 100 } });
+      const rows = (Array.isArray(r) ? r : ((r as Json).data as Json[]) ?? ((r as Json).email_accounts as Json[]) ?? []) as Json[];
+      const hit = rows.find((a) => String(a.from_email ?? a.email ?? "").toLowerCase() === want);
+      if (hit) return Number(hit.id ?? hit.email_account_id);
+      if (rows.length < 100) break;
+    }
+    return null;
+  }
+
+  async setAccountDailyLimit(id: number, maxPerDay: number): Promise<void> {
+    await this.request("POST", `/email-accounts/${id}`, { body: { max_email_per_day: maxPerDay } });
   }
 
   async registerWebhook(campaignId: string, url: string): Promise<void> {

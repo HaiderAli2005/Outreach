@@ -138,10 +138,10 @@ export function NumberMatch({
 
   if (needSignIn)
     return (
-      <div className="au-step nm">
+      <div className="au-step nm au-status">
         <h1 className="au-h">Email confirmed</h1>
         <p className="au-p">Your email is confirmed. Sign in to carry on.</p>
-        <button type="button" className="au-btn" style={{ marginTop: 24 }} onClick={onSignIn}>
+        <button type="button" className="au-btn" onClick={onSignIn}>
           Sign in
         </button>
       </div>

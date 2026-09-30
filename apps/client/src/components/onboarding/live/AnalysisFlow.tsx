@@ -4,11 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, errorCode, errorMessage, useOnboardingAnalyzeMutation, useOnboardingPreviewMutation, useOnboardingUpdateMutation } from "@/store/api";
 import { useAppDispatch } from "@/store";
 import type { MarketView, OnboardingState } from "@/lib/types";
-import { BrandSheet, FactsSheet, Fallback } from "../AnalysisStep";
+import { BrandSheet, FactsSheet, Fallback, GroupCard } from "../AnalysisStep";
 import { MarketTabs } from "../PreviewStep";
 import { Icon } from "@/components/ui/Icon";
-import { compact, n0 } from "@/lib/format";
-import { audienceIcon } from "./cards";
+import { useSignOut } from "@/components/shell/session";
+import { n0 } from "@/lib/format";
 import { EmailsPanel, LiveAnalysis, type Lead, type PhaseKey } from "./LiveAnalysis";
 import { useDock } from "./motion";
 import type { RunState } from "./run";
@@ -27,6 +27,35 @@ function leadsFromMarket(market: MarketView | undefined, audience: string | null
  * Step 3 with the live stream. Starts the run once, follows it (a reload replays it), and when
  * the presentation has docked everything shows the facts to check.
  */
+/** Shown when the account's email isn't confirmed yet: the analysis only runs for confirmed accounts. */
+function VerifyFirst({ domain }: { domain: string }) {
+  const signOut = useSignOut();
+  return (
+    <div className="ph-stage">
+      <div className="ph-panel">
+        <header className="ph-head">
+          <span className="fb-flag">
+            <Icon id="st-mail" />
+            Confirm your email first
+          </span>
+          <h1 className="ph-h">
+            One step before we analyse <span className="grad">{domain}</span>
+          </h1>
+          <p className="ph-sub">
+            We only run the analysis for confirmed accounts. Sign in again and we&apos;ll send a confirmation email. Tap the number in it and your analysis starts straight away.
+          </p>
+        </header>
+        <p>
+          <button type="button" className="btn btn-primary" onClick={() => void signOut()}>
+            Sign in and confirm
+            <Icon id="arr" className="arr" />
+          </button>
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function AnalysisFlow({
   state,
   run,
@@ -72,8 +101,11 @@ export function AnalysisFlow({
 
   const begin = useCallback(() => {
     onPresent(true);
-    start().catch(() => undefined);
-  }, [start, onPresent]);
+    // If the run can't even start (email not confirmed, AI not set up), stop the live view so the reason shows.
+    start()
+      .unwrap()
+      .catch(() => onPresented());
+  }, [start, onPresent, onPresented]);
 
   useEffect(() => {
     if (tried.current || !state.aiAvailable) return;
@@ -124,6 +156,7 @@ export function AnalysisFlow({
     const thin = o.analysisError === "low-confidence";
     const unreadable = o.siteReadable === false || run.error?.code === "site-unreadable";
     const detail = startError ? errorMessage(startError).replace(/^AI analysis: /, "") : run.error?.message ?? (o.analysisError && !thin ? o.analysisError : undefined);
+    if (errorCode(startError) === "EMAIL_NOT_VERIFIED") return <VerifyFirst domain={o.domain} />;
     if (thin || unreadable || aiDown || startError || runState?.status === "FAILED" || run.error)
       return (
         <Fallback
@@ -179,37 +212,12 @@ export function AnalysisFlow({
         <div className="ph-panel">
           <header className="ph-head">
             <h1 className="ph-h">Who buys from you</h1>
-            <p className="ph-sub">Each audience needs its own email. You can change keywords and switch audiences off on the next screen.</p>
+            <p className="ph-sub">Ranked by where we&apos;d start. You can change keywords and switch audiences off in your free overview.</p>
           </header>
           {guessNote}
-          <div className="aud-list">
+          <div className="bg-grid">
             {groups.map((g) => (
-              <article key={g.id} className="aud-card">
-                <span className="aud-ic">
-                  <Icon id={audienceIcon(g.name, g.keywords)} />
-                </span>
-                <div className="aud-body">
-                  <h3>
-                    {g.name}
-                    {count(g.id) != null ? <span className="aud-n">{compact(count(g.id)!)} match</span> : null}
-                  </h3>
-                  {g.why || g.description ? <p className="aud-why">{g.why || g.description}</p> : null}
-                  {g.pains.length ? (
-                    <ul className="aud-pains">
-                      {g.pains.slice(0, 4).map((p) => (
-                        <li key={p}>{p}</li>
-                      ))}
-                    </ul>
-                  ) : null}
-                  {g.keywords.length ? (
-                    <div className="aud-kws">
-                      {g.keywords.map((k) => (
-                        <span key={k}>{k}</span>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              </article>
+              <GroupCard key={g.id} g={g} count={count(g.id)} readOnly examples={(market?.prospects ?? []).filter((x) => x.audienceId === g.id)} />
             ))}
           </div>
         </div>
@@ -223,7 +231,7 @@ export function AnalysisFlow({
         <div className="ph-panel">
           <header className="ph-head">
             <h1 className="ph-h">Your market</h1>
-            <p className="ph-sub">People who match your audiences in the lead database.</p>
+            <p className="ph-sub">How many people match your audiences, and how many we can reach with a verified work email.</p>
           </header>
           {market?.available ? (
             <div className="ph-card">
@@ -237,6 +245,12 @@ export function AnalysisFlow({
                   <b>{market.verified != null ? n0(market.verified) : "n/a"}</b>
                 </div>
               </div>
+              <div className="mk-legend" aria-hidden="true">
+                <span>Audience</span>
+                <span>Match</span>
+                <span>Reachable</span>
+                <span>Share reachable</span>
+              </div>
               <ul className="mk-rows">
                 {o.groups
                   .filter((g) => g.on && (!audience || g.id === audience))
@@ -245,7 +259,7 @@ export function AnalysisFlow({
                     const share = c?.count && c.verified != null ? Math.min(1, c.verified / c.count) : 0;
                     return (
                       <li key={g.id}>
-                        <span className="mk-n">{g.name}</span>
+                        <span className="mk-name">{g.name}</span>
                         <span className="mk-v">{c?.count != null ? n0(c.count) : "n/a"}</span>
                         <span className="mk-v muted">{c?.verified != null ? n0(c.verified) : "n/a"}</span>
                         <span className="mk-bar" aria-hidden="true">
@@ -255,10 +269,6 @@ export function AnalysisFlow({
                     );
                   })}
               </ul>
-              <div className="mk-legend" aria-hidden="true">
-                <span>match</span>
-                <span>reachable</span>
-              </div>
               <MarketTabs market={market} people={market.people} audience={audience} />
             </div>
           ) : (
@@ -278,7 +288,7 @@ export function AnalysisFlow({
         <div className="ph-panel">
           <header className="ph-head">
             <h1 className="ph-h">Your first email</h1>
-            <p className="ph-sub">Written from your analysis for a real lead in your market. Click any card on the left to see what we found about your business, buyers and market.</p>
+            <p className="ph-sub">Written from your analysis for a real lead in your market. You can edit every word before launch.</p>
           </header>
           {guessNote}
           <EmailsPanel
@@ -289,6 +299,7 @@ export function AnalysisFlow({
             brand={o.brand}
             sender={sender}
             dockRef={dock.source("sequence")}
+            language={o.analysis?.brandDetail?.language ?? null}
           />
           {writing.error ? (
             <div className="banner bad" role="alert">
@@ -300,9 +311,10 @@ export function AnalysisFlow({
     );
 
   return (
-    <>
-      <header className="an-head">
-        <h1 className="an-h">
+    <div className="ph-stage">
+      <div className="ph-panel">
+      <header className="ph-head">
+        <h1 className="ph-h">
           {fromAnswers ? (
             <>
               Here&apos;s who buys from <span className="grad">{o.brand}</span>
@@ -313,20 +325,20 @@ export function AnalysisFlow({
             </>
           )}
         </h1>
-        <p className="an-p">Check the facts. Your buyers, market and sample emails are on the left, and you can fine tune the audiences on the next screen.</p>
+        <p className="ph-sub">Check the facts and edit anything we got wrong. Your audiences and emails are built from them.</p>
       </header>
       {updateState.error ? (
-        <div className="banner bad" role="alert" style={{ marginTop: 16 }}>
+        <div className="banner bad" role="alert" >
           {errorMessage(updateState.error)}
         </div>
       ) : null}
       {o.analysisError?.startsWith("answers-only:") ? (
-        <div className="banner bad" role="alert" style={{ marginTop: 16 }}>
+        <div className="banner bad" role="alert" >
           <span>The AI analysis didn&apos;t run, so this audience comes only from your answers. {o.analysisError.slice("answers-only:".length).trim()}</span>
         </div>
       ) : null}
       {o.analysis?.warning ? (
-        <div className="banner" role="note" style={{ marginTop: 16 }}>
+        <div className="banner" role="note" >
           {o.analysis.warning}
         </div>
       ) : null}
@@ -340,6 +352,7 @@ export function AnalysisFlow({
           </button>
         </p>
       ) : null}
-    </>
+      </div>
+    </div>
   );
 }

@@ -13,6 +13,7 @@ const NAV: [string, string, IconId][] = [
   ["/admin/users", "Users", "users"],
   ["/admin/subscriptions", "Subscriptions", "calendar"],
   ["/admin/payments", "Payments", "card"],
+  ["/admin/infrastructure", "Infrastructure", "globe"],
   ["/admin/webhooks", "Webhook events", "rotate"],
   ["/admin/logs", "System logs", "pulse"],
 ];

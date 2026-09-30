@@ -276,8 +276,8 @@ export function validateAnalysis(
     customer_size_hint: nullableStr(bd.customer_size_hint, 120),
     geographies: strings(bd.geographies, 80).map(normalizeCountry).slice(0, 10),
     price_level: nullableStr(bd.price_level, 120),
-    proof: sourced(bd.proof, "proof").slice(0, 8),
-    differentiators: sourced(bd.differentiators, "differentiators").slice(0, 8),
+    proof: sourced(bd.proof, "proof").slice(0, 4),
+    differentiators: sourced(bd.differentiators, "differentiators").slice(0, 4),
     named_customers: strings(bd.named_customers, 80).slice(0, 20),
     buyer_titles_seen: strings(bd.buyer_titles_seen, 80).slice(0, 15),
     competitors: [...new Set(competitors)].slice(0, 10),
@@ -414,5 +414,18 @@ export function validateAnalysis(
   }
   if (audiences.length < 3) repairs.push(`target_audience: only ${audiences.length} usable audience(s), expected 3 to 6`);
 
-  return { analysis: { brand_detail, warning: nullableStr(root.warning, 400), target_audience: audiences }, repairs };
+  return { analysis: { brand_detail, warning: customerWarning(nullableStr(root.warning, 400), repairs), target_audience: audiences }, repairs };
+}
+
+/**
+ * The warning is shown to the business owner, so it may only say the business sells to consumers.
+ * Notes the model writes about its own work (unclear pricing, what is verified, how filters work) are dropped.
+ */
+export function customerWarning(text: string | null | undefined, repairs?: string[]): string | null {
+  if (!text) return null;
+  const aboutConsumers = /\b(consumers?|shoppers?|households?|homeowners?|patients?|individuals|the public|B2C|retail customers|end customers|parents|students|travell?ers|diners)\b/i.test(text);
+  const internal = /\b(ambiguous|conflicting|contradict|unclear|not verified|unverified|verified|recommendations?|filters?|headcounts?|prospecting|inferred|estimated|the model|extracted|billing labels?)\b/i.test(text);
+  if (aboutConsumers && !internal) return text;
+  repairs?.push(`warning: dropped "${text.slice(0, 80)}" (internal note, not for the customer)`);
+  return null;
 }

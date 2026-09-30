@@ -22,9 +22,9 @@
 @media (max-width:1060px){.vb-proofs{display:none}}
 
 /* Shell */
-.lv-shell{display:grid;grid-template-columns:300px minmax(0,1fr);gap:28px;width:min(1480px,100% - 32px);margin:0 auto;padding:24px 0 80px;align-items:start}
+.lv-shell{display:grid;grid-template-columns:316px minmax(0,1fr);gap:28px;width:min(1480px,100% - 32px);margin:0 auto;padding:24px 0 80px;align-items:start}
 .lv-shell.no-rail{grid-template-columns:minmax(0,1fr);width:min(980px,100% - 32px)}
-#onboard.has-third .lv-shell{grid-template-columns:300px minmax(0,1fr) 380px}
+#onboard.has-third .lv-shell{grid-template-columns:316px minmax(0,1fr) 380px}
 .lv-centre{min-width:0}
 
 /* Rail */
@@ -37,11 +37,10 @@
 .rc-list-wrap{display:grid;gap:8px;margin:0;padding:0;list-style:none}
 .rc{border-radius:14px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--hair);animation:rcIn .2s ease-out both}
 .rc.landing{opacity:0;animation:none}
-.rc.cur{box-shadow:inset 0 0 0 1px var(--hair-2)}
 .rc-row{display:flex;align-items:stretch}
 .rc-main{flex:1;min-width:0;display:flex;align-items:flex-start;gap:10px;padding:12px;border:0;border-radius:14px;background:none;color:inherit;text-align:left;cursor:pointer}
 .rc-main:hover,.rc-main:focus-visible{background:rgba(255,255,255,.03);outline:none}
-.rc-main:focus-visible{box-shadow:inset 0 0 0 1px rgba(212,174,114,.6)}
+.rc-main:focus-visible{box-shadow:inset 0 0 0 1px var(--hair-2)}
 .rc-ic{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.05);color:var(--ink-2)}
 .rc-ic svg{width:16px;height:16px}
 .rc-txt{min-width:0;display:grid;gap:2px}
@@ -213,7 +212,7 @@
 .lv-mbar .btn{height:44px;margin-left:auto;white-space:nowrap}
 
 @media (max-width:1279px){
-  #onboard.has-third .lv-shell{grid-template-columns:300px minmax(0,1fr)}
+  #onboard.has-third .lv-shell{grid-template-columns:316px minmax(0,1fr)}
   .lv-col3{position:fixed;top:0;right:0;bottom:0;z-index:70;width:min(440px,100%);max-height:none;padding:56px 16px 16px;background:var(--bg,#0F0E0D);box-shadow:-20px 0 60px rgba(0,0,0,.5);transform:translateX(100%);visibility:hidden;transition:transform .26s var(--ease-out),visibility 0s .26s}
   .lv-col3.open{transform:none;visibility:visible;transition:transform .26s var(--ease-out)}
   .lv-col3-close{display:grid;place-items:center;position:absolute;top:12px;right:12px;width:36px;height:36px;border:0;border-radius:10px;background:rgba(255,255,255,.06);color:var(--ink);cursor:pointer}
@@ -340,14 +339,14 @@
 .mk-rows{display:grid;margin:20px 0 0;padding:0;list-style:none}
 .mk-rows li{display:grid;grid-template-columns:minmax(0,1.4fr) 90px 90px minmax(80px,1fr);align-items:center;gap:16px;min-height:44px;border-bottom:1px solid var(--hair)}
 .mk-rows li:last-child{border-bottom:0}
-.mk-n{overflow:hidden;font:500 14px var(--f-body);color:var(--ink);text-overflow:ellipsis;white-space:nowrap}
+.mk-name{overflow:hidden;font:500 14px var(--f-body);color:var(--ink);text-overflow:ellipsis;white-space:nowrap}
 .mk-v{justify-self:end;font:600 15px var(--f-body);color:var(--ink);font-variant-numeric:tabular-nums}
 .mk-v.muted{color:var(--ink-2)}
 .mk-bar{height:6px;overflow:hidden;border-radius:99px;background:rgba(255,255,255,.06)}
 .mk-bar i{display:block;height:100%;border-radius:inherit;background:rgba(242,238,231,.55);transform-origin:left;animation:lvBar .7s cubic-bezier(.16,1,.3,1) both}
-.mk-legend{display:grid;grid-template-columns:minmax(0,1.4fr) 90px 90px minmax(80px,1fr);gap:16px;margin-top:8px;font:400 12px var(--f-body);color:var(--ink-3)}
-.mk-legend span:first-child{grid-column:2;justify-self:end}
-.mk-legend span:last-child{justify-self:end}
+.mk-legend{display:grid;grid-template-columns:minmax(0,1.4fr) 90px 90px minmax(80px,1fr);gap:16px;margin:22px 0 0;padding-bottom:8px;border-bottom:1px solid var(--hair);font:600 11.5px var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.mk-legend span:nth-child(2),.mk-legend span:nth-child(3){justify-self:end}
+.mk-legend + .mk-rows{margin-top:0}
 .mb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:24px;margin-top:24px;padding-top:24px;border-top:1px solid var(--hair)}
 .mb{display:grid;gap:10px;margin:0}
 .mb figcaption{font:500 13px var(--f-body);color:var(--ink-3)}
@@ -421,7 +420,7 @@
 .rc-aud button span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rc-aud button b{font:500 12px var(--f-body);color:var(--ink-3);font-variant-numeric:tabular-nums}
 .rc-aud button:hover,.rc-aud button:focus-visible{color:var(--ink);background:rgba(255,255,255,.04);outline:none}
-.rc-aud button[aria-pressed="true"]{color:var(--ink);background:rgba(212,174,114,.1)}
+.rc-aud button[aria-pressed="true"]{color:var(--ink);background:rgba(255,255,255,.07)}
 .rc-facts{display:grid;gap:8px;margin:0;padding:0;list-style:none}
 .rc-facts li{display:grid;gap:2px;font:400 12.5px/1.45 var(--f-body);color:var(--ink-2)}
 .rc-facts small{font:500 11px var(--f-mono);color:var(--ink-3)}
@@ -496,6 +495,123 @@
 .rc-step.landing .rc-gh{opacity:0}
 .rc-gh{display:flex;align-items:center;gap:7px;margin:0;padding:0 2px;font:500 11.5px var(--f-mono);letter-spacing:.02em;color:var(--ink-4);animation:rcIn .2s ease-out both}
 .rc-gh svg{flex:none;width:12px;height:12px;fill:none;stroke:var(--good);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.rc.cur{box-shadow:inset 0 0 0 1px var(--gold-line)}
-.rc.cur .rc-ic{color:var(--gold)}
 @media (prefers-reduced-motion:reduce){#onboard.lv-app .rc-gh{animation:none}}
+/* Audience card: who they are, why they buy, who we email, and the keywords that find them, each in its own block. */
+#onboard .bg2,#onboard.lv-app .bg2{gap:0;padding:0;overflow:hidden}
+#onboard .bg2-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:16px;align-items:start;padding:22px 24px}
+#onboard .bg2-ic{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;color:var(--gold);background:rgba(212,174,114,.08);box-shadow:inset 0 0 0 1px var(--gold-line)}
+#onboard .bg2-ic svg{width:18px;height:18px}
+#onboard .bg2-title{min-width:0}
+#onboard .bg2-title .bg-pri{margin-bottom:6px}
+#onboard .bg2-title h3{margin:0;font:600 17px/1.3 var(--f-body);letter-spacing:-.01em;color:var(--ink)}
+#onboard .bg2-title p{margin:5px 0 0;font:400 13.5px/1.5 var(--f-body);color:var(--ink-3)}
+#onboard .bg2-side{display:grid;justify-items:end;gap:12px}
+#onboard .bg2-count{display:grid;justify-items:end;text-align:right}
+#onboard .bg2-count b{font:600 24px/1.1 var(--f-display,var(--f-body));letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums}
+#onboard .bg2-count > span{font:400 12.5px var(--f-body);color:var(--ink-3)}
+#onboard .bg2-insight{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+#onboard .bg2-insight section + section{box-shadow:inset 1px 0 0 var(--hair)}
+#onboard .bg2-insight section{padding:18px 24px}
+#onboard .bg2 h4{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;margin:0 0 10px;font:600 11.5px var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+#onboard .bg2 h4 span{font:400 12.5px var(--f-body);letter-spacing:0;text-transform:none;color:var(--ink-4)}
+#onboard .bg2-insight p{margin:0;font:400 14px/1.55 var(--f-body);color:var(--ink)}
+#onboard .bg2-insight ul{display:grid;gap:7px;margin:0;padding:0;list-style:none}
+#onboard .bg2-insight li{position:relative;padding-left:16px;font:400 14px/1.45 var(--f-body);color:var(--ink-2)}
+#onboard .bg2-insight li::before{content:"";position:absolute;left:2px;top:.6em;width:5px;height:5px;border-radius:50%;background:var(--gold)}
+#onboard .bg2-sec{padding:18px 24px;border-top:1px solid var(--hair)}
+#onboard .bg2-insight + .bg2-sec{border-top:0}
+#onboard .bg2-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 20px;margin:0}
+#onboard .bg2-facts > div{display:grid;gap:6px;min-width:0}
+#onboard .bg2-facts > div.wide{grid-column:1/-1}
+#onboard .bg2-facts dt{font:500 12.5px var(--f-body);color:var(--ink-3)}
+#onboard .bg2-facts dd{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0;font:500 14px/1.45 var(--f-body);color:var(--ink)}
+#onboard .bg2-sim{font:400 12.5px var(--f-body);color:var(--ink-3)}
+#onboard .bg2 .bg-more{margin:0;padding:12px 24px 16px;border-top:1px solid var(--hair)}
+@media (max-width:760px){
+  #onboard .bg2-head{grid-template-columns:minmax(0,1fr) auto;padding:18px}
+  #onboard .bg2-ic{display:none}
+  #onboard .bg2-insight section,#onboard .bg2-sec{padding:16px 18px}
+  #onboard .bg2-facts{grid-template-columns:minmax(0,1fr)}
+  #onboard .bg2 .bg-more{padding:12px 18px 14px}
+}
+#onboard .bg2-kws{display:flex;flex-wrap:wrap;gap:6px}
+/* Read-only rows in the facts sheets line up with their labels. */
+#onboard .an-sheet.brand .fact{align-items:center}
+#onboard .an-sheet.brand .fact-l{padding-top:0}
+#onboard .an-sheet.brand .brand-v{display:flex;flex-wrap:wrap;gap:6px;font:500 14.5px/1.5 var(--f-body);color:var(--ink)}
+#onboard .an-sheet.brand .src{margin-top:0}
+/* The facts and brand sheets sit in the same stack as every other section. */
+#onboard .ph-panel > .an-sheet{margin-top:0}
+#onboard .ph-panel > .fine{margin:0}
+/* One heading style for every step, live or not. */
+#onboard .ph-h{display:block;font:600 clamp(28px,2.6vw,36px)/1.1 var(--f-display);letter-spacing:-.035em;text-wrap:balance}
+#onboard .ph-h .lv-live{display:inline-block;margin-left:12px;vertical-align:middle}
+#onboard .ph-h .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+/* Table headers read the same as the audience and market headers. */
+#onboard .co-row.co-head{min-height:0;padding-top:0;padding-bottom:8px;font:600 11.5px var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+#onboard .co-row.co-head span:first-child{width:30px}
+#onboard .pt th{font:600 11.5px var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+@media (max-width:899px){#onboard .co-row.co-head{display:none}}
+/* Real people on the audience card: proof that these buyers exist. */
+#onboard .bg2-people{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:0;padding:0;list-style:none}
+#onboard .bg2-people li{display:grid;grid-template-columns:32px minmax(0,1fr);align-items:center;gap:4px 10px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.03);box-shadow:inset 0 0 0 1px var(--hair)}
+#onboard .bg2-av{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;font:600 13px var(--f-body);color:var(--ink);background:rgba(255,255,255,.07)}
+#onboard .bg2-who{display:grid;min-width:0}
+#onboard .bg2-who b{font:600 13.5px var(--f-body);color:var(--ink)}
+#onboard .bg2-who small{overflow:hidden;font:400 12.5px var(--f-body);color:var(--ink-3);text-overflow:ellipsis;white-space:nowrap}
+#onboard .bg2-mail{grid-column:2;display:inline-flex;align-items:center;gap:5px;font:500 12px var(--f-body);color:var(--good)}
+#onboard .bg2-mail svg{width:12px;height:12px}
+#onboard .kw-note{margin:0;font:400 12px/1.45 var(--f-body);color:var(--ink-3)}
+/* Company examples when the search returned names only. */
+#onboard .co-list.lean .co-row{grid-template-columns:30px minmax(0,1.2fr) minmax(0,1.6fr) 70px}
+#onboard .co-titles{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#onboard .co-n{justify-self:end;font-variant-numeric:tabular-nums}
+#onboard .co-list.lean .co-head span:last-child{justify-self:end}
+@media (max-width:899px){#onboard .co-list.lean .co-row{grid-template-columns:30px minmax(0,1fr) auto}#onboard .co-list.lean .co-titles{display:none}}
+/* Right-to-left content (Urdu, Arabic...): bullets sit on the side the text starts from. */
+.bg-pains li,.aud-pains li{padding-left:0;padding-inline-start:14px}
+.bg-pains li::before,.aud-pains li::before{left:auto;inset-inline-start:0}
+#onboard .bg2-insight li{padding-left:0;padding-inline-start:16px}
+#onboard .bg2-insight li::before{left:auto;inset-inline-start:2px}
+/* Arabic script needs a little more line height than Latin to stay readable. */
+.em-body:dir(rtl) .em-text,.msg .body:dir(rtl){line-height:1.9}
+/* A container may set text-align:left; text we mark with a direction aligns to where it starts instead. */
+[dir="auto"],[dir="rtl"]{text-align:start}
+
+/* ---------- Rail: three step headings, each decision its own card, the tick at the end ---------- */
+.rc-steps{display:grid;gap:18px;margin:0;padding:0;list-style:none}
+.rc-step{display:grid;gap:8px;min-width:0;animation:rcIn .25s ease-out both}
+.rc-step.landing{opacity:0;animation:none}
+.rc-gh{display:grid;gap:2px;margin:0;padding:0 4px;font:inherit;letter-spacing:0;color:inherit;animation:none}
+.rc-gh-n{font:500 11.5px var(--f-mono);letter-spacing:.02em;text-transform:lowercase;color:var(--ink-4)}
+.rc-gh-t{display:flex;align-items:center;justify-content:space-between;gap:10px;font:500 11.5px var(--f-mono);letter-spacing:.02em;color:var(--ink-3)}
+.rc-step.done .rc-gh-t{color:var(--ink-3)}
+.rc-gh-tick{flex:none;width:15px;height:15px;margin-right:8px;fill:none;stroke:var(--good);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:16;stroke-dashoffset:16;animation:tick .3s ease-out .1s forwards}
+.rc-gh-live{flex:none;width:7px;height:7px;margin-right:12px;border-radius:50%;background:var(--ink-3);animation:rcPulse 1.8s ease-out infinite}
+@keyframes rcPulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.18)}70%,100%{box-shadow:0 0 0 7px rgba(255,255,255,0)}}
+.rc-list-wrap{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.rc-row{display:grid;grid-template-columns:minmax(0,1fr) auto 30px;align-items:center}
+.rc-row > .rc-main{grid-column:1}.rc-row > .rc-chev{grid-column:2}.rc-row > .rc-done{grid-column:3}
+.rc-main{padding:12px 4px 12px 12px}
+.rc-chev{width:24px;height:28px;border-radius:7px;opacity:0;transition:opacity .2s,color .2s,background .2s}
+.rc:hover .rc-chev,.rc.open .rc-chev,.rc-chev:focus-visible{opacity:1}
+.rc-chev:hover{background:rgba(255,255,255,.05)}
+.rc-done{display:grid;place-items:center;width:30px;height:100%;padding-right:4px}
+.rc-tick{width:15px;height:15px;stroke-width:2.2;animation:tick .3s ease-out .25s forwards}
+.rc.landing .rc-tick{animation:none}
+.rc{transition:background .2s,box-shadow .2s}
+.rc:hover{background:#1B1A18}
+.rc-main:hover,.rc-main:focus-visible{background:none}
+@media (hover:none){.rc-chev{opacity:1}}
+@media (prefers-reduced-motion:reduce){#onboard.lv-app .rc-step{animation:none}#onboard.lv-app .rc-gh-tick{animation:none;stroke-dashoffset:0}#onboard.lv-app .rc-gh-live{animation:none}}
+.pv-all{margin-top:16px}
+/* Offer and positioning: one row per kind of evidence, items listed inside */
+#onboard .an-sheet.brand .ev-row{grid-template-columns:170px minmax(0,1fr);align-items:start}
+#onboard .an-sheet.brand .ev-row .fact-l{padding-top:3px}
+#onboard .ev-list{display:grid;gap:0;margin:0;padding:0;list-style:none;min-width:0}
+#onboard .ev-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:16px;padding:8px 0;border-top:1px solid var(--hair);font:500 14.5px/1.5 var(--f-body);color:var(--ink)}
+#onboard .ev-list li:first-child{border-top:0;padding-top:0}
+#onboard .ev-list li:last-child{padding-bottom:0}
+#onboard .ev-list .ev-more{display:block;border-top:0;padding-top:4px}
+#onboard .ev-list .au-link{color:var(--ink-2);font:500 13px var(--f-body);text-decoration:underline;text-underline-offset:3px}
+@media (max-width:760px){#onboard .an-sheet.brand .ev-row{grid-template-columns:1fr}#onboard .ev-list li{grid-template-columns:1fr;gap:6px}}

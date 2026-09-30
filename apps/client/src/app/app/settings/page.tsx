@@ -31,6 +31,9 @@ import {
 import { ago, dateLong, n0, titleCase } from "@/lib/format";
 import type { AutoReplyMode, OrgSettings, Provider, SettingsView } from "@/lib/types";
 
+const BOX_TONE: Record<string, "g" | "b" | "v" | "y" | "r"> = { ACTIVE: "g", WARMING: "b", CONNECTING: "b", CREATING: "b", PENDING: "y", PLANNED: "v", ERROR: "r", RELEASED: "v" };
+const BOX_LABEL: Record<string, string> = { PLANNED: "Planned", PENDING: "Queued", CREATING: "Creating", CONNECTING: "Connecting", WARMING: "Warming up", ACTIVE: "Sending", ERROR: "Needs attention", RELEASED: "Closed" };
+
 type Patch = Partial<OrgSettings>;
 
 const TABS = [
@@ -414,6 +417,10 @@ function Sending({ view, canManage }: { view: SettingsView; canManage: boolean }
           <ErrorState error={error} onRetry={refetch} />
         ) : isLoading || !data ? (
           <SkeletonRows rows={3} />
+        ) : data.accountsError ? (
+          <p className="muted" style={{ marginTop: 8 }}>
+            {data.accountsError}. The inboxes from your setup are listed below and keep moving along.
+          </p>
         ) : !data.connected ? (
           <p style={{ marginTop: 8 }}>Connect Smartlead under Integrations to list your sending mailboxes here.</p>
         ) : !data.accounts.length ? (
@@ -469,6 +476,9 @@ function Sending({ view, canManage }: { view: SettingsView; canManage: boolean }
         <div className="tbl-wrap glass">
           <div style={{ padding: "18px 20px 6px" }}>
             <h3 style={{ margin: 0, font: "600 17px var(--f-display)" }}>Inboxes from your setup</h3>
+            <p className="muted" style={{ margin: "4px 0 0", fontSize: 13.5 }}>
+              Created, warmed up and added to your campaign automatically. Sends per inbox rise gently to the daily limit over the first two weeks.
+            </p>
           </div>
           <div className="tbl-scroll">
             <table className="tbl">
@@ -477,6 +487,7 @@ function Sending({ view, canManage }: { view: SettingsView; canManage: boolean }
                   <th>Address</th>
                   <th>Domain</th>
                   <th>Status</th>
+                  <th className="right">Sends a day</th>
                   <th className="right">Warmup</th>
                 </tr>
               </thead>
@@ -488,8 +499,10 @@ function Sending({ view, canManage }: { view: SettingsView; canManage: boolean }
                       {m.sendingDomain?.name} · {titleCase(m.sendingDomain?.status ?? "")}
                     </td>
                     <td>
-                      <Chip tone={m.status === "ACTIVE" ? "g" : m.status === "ERROR" ? "r" : m.status === "WARMING" ? "b" : "y"}>{titleCase(m.status)}</Chip>
+                      <Chip tone={BOX_TONE[m.status] ?? "y"}>{BOX_LABEL[m.status] ?? titleCase(m.status)}</Chip>
+                      {m.lastError && m.status !== "ACTIVE" ? <div className="m" style={{ marginTop: 4, fontSize: 12.5 }}>{m.lastError}</div> : null}
                     </td>
+                    <td className="num-cell">{m.status === "ACTIVE" && m.sendCap ? `${m.sendCap} of ${m.dailyLimit}` : "—"}</td>
                     <td className="num-cell">{m.warmupDays} days</td>
                   </tr>
                 ))}

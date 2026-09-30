@@ -194,7 +194,7 @@ async function sitemapPaths(base: string, host: string): Promise<string[]> {
         /* skip bad urls */
       }
     }
-    return [...paths].sort((a, b) => a.length - b.length).slice(0, 8);
+    return [...paths].sort((a, b) => a.length - b.length).slice(0, 10);
   } catch {
     return [];
   } finally {
@@ -210,7 +210,7 @@ export interface SiteHooks {
   onPage?: (page: SitePage) => void;
 }
 
-async function readSitePages(domain: string, hooks: SiteHooks = {}, perPage = 3000, maxPages = 8): Promise<{ home: SiteHome | null; pages: SitePage[] }> {
+async function readSitePages(domain: string, hooks: SiteHooks = {}, perPage = 4000, maxPages = 10): Promise<{ home: SiteHome | null; pages: SitePage[] }> {
   let base: string | null = null;
   let home: Page | null = null;
   for (const origin of [`https://${domain}`, `https://www.${domain}`, `http://${domain}`]) {

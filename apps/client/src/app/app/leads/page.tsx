@@ -151,7 +151,7 @@ function LeadDrawer({ id, onClose }: { id: string; onClose: () => void }) {
                   <b>{c.messageSubject}</b>
                   <span>Email 1</span>
                 </div>
-                <div className="body">{c.personalization}</div>
+                <div className="body" dir="auto">{c.personalization}</div>
               </div>
               {c.followup2 ? (
                 <div className="msg out" style={{ marginTop: 10 }}>
@@ -159,7 +159,7 @@ function LeadDrawer({ id, onClose }: { id: string; onClose: () => void }) {
                     <b>Follow up</b>
                     <span>Email 2</span>
                   </div>
-                  <div className="body">{c.followup2}</div>
+                  <div className="body" dir="auto">{c.followup2}</div>
                 </div>
               ) : null}
               {c.followup3 ? (
@@ -168,7 +168,7 @@ function LeadDrawer({ id, onClose }: { id: string; onClose: () => void }) {
                     <b>Last note</b>
                     <span>Email 3</span>
                   </div>
-                  <div className="body">{c.followup3}</div>
+                  <div className="body" dir="auto">{c.followup3}</div>
                 </div>
               ) : null}
             </div>
@@ -182,7 +182,7 @@ function LeadDrawer({ id, onClose }: { id: string; onClose: () => void }) {
                     <b>{m.direction === "OUTBOUND" ? "Sent" : "Reply"}</b>
                     <span>{dateTime(m.createdAt)}</span>
                   </div>
-                  <div className="body">{m.body}</div>
+                  <div className="body" dir="auto">{m.body}</div>
                 </div>
               ))}
             </div>

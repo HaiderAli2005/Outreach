@@ -229,11 +229,14 @@ describe("rail", () => {
       </DockProvider>,
     );
     expect(screen.queryByText("Your buyers")).not.toBeInTheDocument();
-    // Each finished part of the process is numbered in the order it was done.
-    expect(screen.getByText("step 1 · business")).toBeInTheDocument();
-    expect(screen.getByText("step 2 · market")).toBeInTheDocument();
+    // Decisions sit under the three parts of the setup, in order.
+    const steps = screen.getAllByRole("listitem").filter((li) => li.classList.contains("rc-step"));
+    expect(steps.map((li) => li.querySelector(".rc-gh")!.textContent)).toEqual(["step 1 · about your businessStep complete", "step 2 · your free previewIn progress"]);
     expect(screen.queryByText(/step 3/)).not.toBeInTheDocument();
-    expect(screen.getByText("Your market").closest("li")).toHaveClass("cur");
+    // Every finished row ends with its tick.
+    const market = screen.getByText("Your market").closest("li")!;
+    expect(market).toHaveClass("cur");
+    expect(market.querySelector(".rc-row > :last-child .rc-tick")).not.toBeNull();
     await userEvent.click(screen.getByRole("button", { name: /Your market: 1,200 match · 400 reachable/ }));
     expect(onOpen).toHaveBeenCalledWith(2, "market");
     expect(screen.getByText("A niche market.")).toBeInTheDocument();
@@ -302,5 +305,49 @@ describe("rail", () => {
       ["market", "Lead search not connected yet"],
       ["sequence", "1 email"],
     ]);
+  });
+
+  it("adds sample prospects and the confirmed audiences once the preview is left", () => {
+    const base = onboardingState().onboarding!;
+    const group = (id: string, on: boolean) => ({ ...(base.groups[0] ?? {}), id, priority: 1, name: `Group ${id}`, keywords: [], on }) as never;
+    const state = onboardingState({
+      onboarding: { ...base, analyzedAt: new Date().toISOString(), groups: [group("a", true), group("b", true), group("c", true), group("d", false)], preview: [1, 2, 3].map(() => ({ tab: "x", day: "Day 1", subject: "s", body: "b" })) },
+    });
+    const prospect = { firstName: "Ali", lastInitial: "K", title: "Owner", company: "Hilal", country: "Pakistan", hasEmail: true };
+    const market = { available: true, reason: null, groups: [], people: 22240, verified: 14597, sample: { size: 12, byCountry: [], bySize: [], bySeniority: [] }, prospects: Array.from({ length: 12 }, () => prospect), checkedAt: "" };
+    const cards = railCards({ state, run: emptyRun, live: false, market, draft: null, t: null, max: 3, docked: {}, setupDone: false });
+    expect(cards.map((c) => [c.key, c.detail])).toEqual([
+      ["business", base.brand],
+      ["buyers", "4 audiences"],
+      ["market", "22,240 match · 14,597 reachable"],
+      ["prospects", "12 people"],
+      ["sequence", "3 emails"],
+      ["confirmed", "3 on, 1 off"],
+    ]);
+  });
+});
+
+describe("right-to-left content", () => {
+  it("shows an Urdu email right to left even when it starts with a Latin name", () => {
+    render(
+      <EmailsPanel
+        leads={[{ key: "a", firstName: "Usman", lastMasked: "K***", title: "Owner", company: "Metro Mart", hasEmail: true }]}
+        drafts={[{ subject: "اسٹاک کا حساب", body: "{{first_name}} صاحب، آپ کی ہر برانچ کا اسٹاک الگ کیوں ہے؟" }]}
+        animate={false}
+        writing={false}
+        brand="eKhata"
+        sender="Mazhar"
+        language="ur"
+      />,
+    );
+    const body = document.querySelector(".em-body")!;
+    expect(body).toHaveAttribute("dir", "rtl");
+    expect(body).toHaveAttribute("lang", "ur");
+    expect(body).toHaveTextContent("Usman صاحب");
+  });
+
+  it("lets the browser pick the direction when the language is not known to be right to left", () => {
+    render(<EmailsPanel leads={[]} drafts={[{ subject: "Hello", body: "Hi {{first_name}}" }]} animate={false} writing={false} brand="Northwind" sender="Alex" language="en" />);
+    expect(document.querySelector(".em-body")).toHaveAttribute("dir", "auto");
   });
 });
